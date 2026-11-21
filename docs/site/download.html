@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download — SwiftFetch</title>
+  <meta name="description" content="SwiftFetch download status, system requirements and owner placeholders for release links. Installers are unsigned preview candidates.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html">SwiftFetch</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="download.html" aria-current="page">Download</a></li>
+          <li><a href="documentation.html">Documentation</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="license.html">License</a></li>
+          <li><a href="support.html">Support</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <aside class="notice" aria-label="Release status">
+      <strong>Installers are currently UNSIGNED preview candidates.</strong>
+      <p>These builds are not a safe public release yet. They are provided for evaluation only. Downloading is free of charge, but release approval, code signing, licensing and publisher identity are pending owner decisions. Do not treat these installers as a trusted public release.</p>
+    </aside>
+
+    <h1>Download</h1>
+    <p class="lead">SwiftFetch is a Windows x64 desktop application. Local verification was performed on Windows 11 x64.</p>
+
+    <h2>Release status</h2>
+    <p>The current candidate manifest records <code>ready_for_public_release: false</code>, and the Windows executables are recorded as not signed. No code-signing certificate was found in the user or machine certificate stores. Public distribution is blocked on signing, a selected distribution license, a clean-machine install/upgrade/rollback/uninstall test and publisher update configuration.</p>
+    <p>Because these are unsigned preview candidates, no direct installer download link is published here yet.</p>
+
+    <h2>Release links</h2>
+    <p>The following entries are placeholders for the release owner to complete. They are not active download links.</p>
+    <table>
+      <thead>
+        <tr><th scope="col">Item</th><th scope="col">Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Windows installer (NSIS), signed release</td>
+          <td><span class="placeholder">[OWNER: GitHub Releases URL]</span> — not available; preview candidate is unsigned.</td>
+        </tr>
+        <tr>
+          <td>Windows installer (MSI), signed release</td>
+          <td><span class="placeholder">[OWNER: GitHub Releases URL]</span> — not available; preview candidate is unsigned.</td>
+        </tr>
+        <tr>
+          <td>Source snapshot</td>
+          <td><span class="placeholder">[OWNER: GitHub Releases URL]</span> — pending owner publication.</td>
+        </tr>
+        <tr>
+          <td>SHA-256 checksums</td>
+          <td><span class="placeholder">[OWNER: GitHub Releases URL]</span> — pending owner publication.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>System requirements</h2>
+    <ul>
+      <li>Windows x64; local verification platform is Windows 11 x64.</li>
+      <li>Microsoft Edge WebView2 Runtime.</li>
+      <li>For building from source: Microsoft C++ Build Tools with the Desktop development with C++ workload, Rust 1.98.0 targeting <code>x86_64-pc-windows-msvc</code>, Node.js 24 or newer, and Python 3.12.</li>
+    </ul>
+
+    <h2>Build from source</h2>
+    <p>Until a signed release is published, the reviewed source can be built locally. From the repository root on Windows:</p>
+    <p><code>npm ci</code><br><code>npm run tauri dev</code></p>
+    <p>Verification and packaging scripts are <code>./tools/verify.ps1</code>, <code>./tools/build-windows.ps1</code> and <code>node tools/smoke-desktop.mjs</code>. The build produces a desktop binary and Windows installers in <code>src-tauri/target/release/</code>.</p>
+    <p>Builds do not invent publisher signing credentials or update endpoints. Signed updates and rollback require the release owner to provide signing keys and HTTPS endpoints at build time; see <a href="documentation.html">Documentation</a>.</p>
+
+    <h2>A note on expectations</h2>
+    <p>Download speed depends on the source, connection, server policies, storage and device resources. Multiple connections are an optimization and do not guarantee a particular improvement. Checksum and antivirus results have limited meanings and do not guarantee that downloaded content is safe. Only open completed files you trust.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>SwiftFetch — Windows download manager, release candidate (version 0.1.0).</p>
+      <p>Installers are unsigned preview candidates, not a safe public release. Placeholders must be replaced by the release owner.</p>
+    </div>
+  </footer>
+</body>
+</html>

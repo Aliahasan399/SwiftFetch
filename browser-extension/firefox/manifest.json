@@ -1,0 +1,45 @@
+{
+  "manifest_version": 2,
+  "name": "SwiftFetch Download Bridge",
+  "version": "0.1.0",
+  "description": "Hand an explicit download action to the SwiftFetch desktop app. Never inspects or transmits browsing traffic.",
+  "permissions": ["contextMenus", "storage", "nativeMessaging", "tabs"],
+  "background": {
+    "scripts": [
+      "shared/protocol.bundle.js",
+      "shared/native-response.bundle.js",
+      "background.js"
+    ],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["../chrome/content.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "browser_action": {
+    "default_title": "SwiftFetch",
+    "default_popup": "../chrome/popup.html",
+    "default_icon": {
+      "16": "../chrome/icons/16.png",
+      "32": "../chrome/icons/32.png",
+      "48": "../chrome/icons/48.png",
+      "128": "../chrome/icons/128.png"
+    }
+  },
+  "icons": {
+    "16": "../chrome/icons/16.png",
+    "32": "../chrome/icons/32.png",
+    "48": "../chrome/icons/48.png",
+    "128": "../chrome/icons/128.png"
+  },
+  "applications": {
+    "gecko": {
+      "id": "swiftfetch@localhost",
+      "strict_min_version": "91.0"
+    }
+  }
+}

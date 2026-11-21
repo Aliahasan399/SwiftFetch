@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy — SwiftFetch</title>
+  <meta name="description" content="SwiftFetch is local-first: queue, settings and history stay on the Windows account, with no required account or telemetry upload.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html">SwiftFetch</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="download.html">Download</a></li>
+          <li><a href="documentation.html">Documentation</a></li>
+          <li><a href="privacy.html" aria-current="page">Privacy</a></li>
+          <li><a href="license.html">License</a></li>
+          <li><a href="support.html">Support</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <aside class="notice" aria-label="Notice">
+      <strong>Privacy notice draft.</strong>
+      <p>This notice reflects the release-candidate implementation. Before publication, the release owner must identify the publisher, provide a privacy contact, choose support and retention procedures, and review this notice against the actual release configuration. It does not claim regulatory certification.</p>
+    </aside>
+
+    <h1>Privacy</h1>
+    <p class="lead">SwiftFetch is local-first. It does not require an account and does not upload telemetry for downloading.</p>
+
+    <h2>What is stored locally</h2>
+    <p>Queue state, settings, filenames, destination paths, download URLs and request metadata are stored on the local Windows account. By default, data is kept in the current user's <code>%APPDATA%\swiftfetch</code> directory. Downloads go to the destination you choose. The environment variables <code>SWIFTFETCH_DATA_DIR</code>, <code>SWIFTFETCH_DB_PATH</code> and <code>SWIFTFETCH_DOWNLOADS_DIR</code> can override the defaults.</p>
+    <p>A URL or request header can contain private access tokens. Local database backups must therefore be kept private.</p>
+
+    <h2>Network activity</h2>
+    <p>The application makes network requests to download sources, configured proxies and redirects accepted by its URL policy. A publisher-configured update check contacts the release endpoint only when requested. No cloud account or telemetry upload is required for downloading. Local diagnostic exports do not upload themselves.</p>
+    <p>An unconfigured build makes no release network request. Signed updates require publisher configuration; see <a href="documentation.html">Documentation</a>.</p>
+
+    <h2>Clipboard capture</h2>
+    <p>Clipboard monitoring is off by default. When enabled, it reads clipboard text locally to detect a permitted HTTP(S) URL and opens a confirmation form; detection alone does not start a transfer. The explicit Paste URL button reads the clipboard for that action. Disable capture in Settings to stop monitoring.</p>
+
+    <h2>Browser extension</h2>
+    <p>The optional extension sends the selected URL to the local app through Windows Native Messaging only after a user action. It does not forward browser cookies or credentials. Unpacked extension setup and native-host registration are optional. The extension has no broad host permissions, does not inspect page content or network traffic, and its logs contain only scheme and host, with paths and queries stripped.</p>
+
+    <h2>History, retention and sharing</h2>
+    <p>History clearing and automatic retention remove queue metadata, not completed files. Optional failed-partial cleanup is limited to the working file owned by the failed task. An explicit Skip decision removes that task's new working file and keeps the existing destination file unchanged.</p>
+    <p>A shareable queue inventory excludes request URLs and headers but includes filenames and local paths. Review it before sharing. A full local SQLite backup contains private request data and is not a support attachment by default.</p>
+
+    <h2>Privacy contact</h2>
+    <p>The release owner must provide a privacy contact before publication: <span class="placeholder">[OWNER: privacy contact]</span>.</p>
+    <p>Do not include private download URLs or full database backups in a public support report. See <a href="support.html">Support</a> for safe reporting guidance.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>SwiftFetch — Windows download manager, release candidate (version 0.1.0).</p>
+      <p>Privacy notice is a draft; publisher identity, privacy contact and final configuration review are pending owner decisions.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "com.swiftfetch.app",
+  "description": "SwiftFetch browser bridge native messaging host",
+  "path": "C:\\Program Files\\SwiftFetch\\swiftfetch_native_host.bat",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://PASTE_YOUR_EXTENSION_ID_HERE/"
+  ]
+}

@@ -1,0 +1,60 @@
+# Rust / Tauri build output (23+ GB; must never enter Git)
+target/
+src-tauri/target/
+**/target/
+
+# Coverage and profiling output
+coverage/
+*.profraw
+*.profdata
+
+# Tauri local signing/key material and generated updater keys
+.tauri/
+*.sig
+*.sig.gz
+tauri.key
+tauri.key.pub
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Local state, release output, and working copies
+/artifacts/
+/data/
+/downloads/
+/test-downloads/
+/browser-extension/dist/
+*.bak-*
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite.lock
+*.part
+__pycache__/
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

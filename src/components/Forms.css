@@ -1,0 +1,59 @@
+.form-stack { display: flex; flex-direction: column; gap: 19px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.form-grid-three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.form-grid .full-width { grid-column: 1 / -1; }
+.field { display: flex; flex-direction: column; gap: 7px; font-size: 12px; font-weight: 600; color: var(--text); min-width: 0; }
+.field input, .field select, .field textarea { font-size: 13px; font-weight: 400; }
+.optional { color: var(--subtle); font-size: 10px; font-weight: 400; }
+.field > .optional { margin-top: -6px; }
+.field-hint { display: block; color: var(--muted); font-size: 11px; font-weight: 400; line-height: 1.6; margin: 0; }
+.field-error { background: var(--error-bg); color: var(--error); border: 1px solid var(--error); border-radius: 6px; padding: 12px; font-size: 12px; margin: 0; }
+.fieldset-reset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.form-section { margin: 0; padding: 17px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+.form-section legend { font-weight: 600; font-size: 12px; padding: 0 7px; }
+.form-section > .field { margin-top: 17px; }
+.form-section > .field-hint { margin-top: 13px; }
+.checksum-grid { grid-template-columns: minmax(160px, .7fr) minmax(0, 1.3fr); }
+.check-field { display: flex; align-items: flex-start; gap: 10px; font-size: 12px; cursor: pointer; }
+.check-field input { margin: 2px 0 0; }
+.privacy-note { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; margin: 0; }
+.privacy-note svg { color: var(--accent); }
+.day-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.day-picker label { display: flex; flex-direction: column; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 6px; padding: 9px 4px; font-size: 11px; color: var(--muted); cursor: pointer; }
+.day-picker input { margin: 0; }
+.day-picker .day-selected { color: var(--accent); background: var(--accent-wash); border-color: var(--accent); }
+.day-picker label:focus-within { outline: 2px solid var(--accent); outline-offset: 3px; }
+.settings-form { display: flex; flex-direction: column; gap: 20px; }
+.settings-section { padding: 24px; }
+.settings-section > header { display: flex; gap: 13px; margin-bottom: 23px; }
+.settings-section header h2 { margin-bottom: 4px; }
+.settings-section header p { margin: 0; color: var(--muted); font-size: 12px; }
+.settings-section > .notice { margin-top: 20px; }
+.settings-switches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 25px; }
+.settings-switch { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 17px 0; border-top: 1px solid var(--border); cursor: pointer; }
+.settings-switch strong { display: block; font-size: 12px; font-weight: 600; }
+.settings-switch small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; margin-top: 4px; }
+.settings-switch input { width: 18px; height: 18px; }
+.settings-footer { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 9px; box-shadow: 0 -8px 25px #0001; padding: 17px 20px; z-index: 3; }
+.settings-footer > div { display: flex; gap: 10px; }
+.detail-title { display: flex; gap: 18px; align-items: flex-start; justify-content: space-between; }
+.detail-title h3 { font-size: 18px; }
+.detail-section { border-top: 1px solid var(--border); padding-top: 18px; }
+.detail-section h3 { font-size: 14px; margin-bottom: 16px; }
+.detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px 24px; margin: 0 0 17px; }
+.detail-grid dt, .detail-list dt { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+.detail-grid dd, .detail-list dd { color: var(--text); font-size: 12px; margin: 0; overflow-wrap: anywhere; }
+.detail-list { display: grid; gap: 14px; margin: 0 0 18px; }
+.detail-list > div { display: grid; grid-template-columns: minmax(100px, .3fr) minmax(0, 1fr); gap: 14px; }
+.detail-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 1100px) { .settings-switches { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) {
+  .form-grid, .form-grid-three, .checksum-grid { grid-template-columns: minmax(0, 1fr); }
+  .settings-section { padding: 18px; }
+  .settings-footer { flex-wrap: wrap; }
+  .detail-title { flex-direction: column; }
+  .detail-grid { gap: 15px; }
+  .detail-list > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .day-picker { gap: 4px; }
+  .day-picker label { font-size: 10px; }
+}

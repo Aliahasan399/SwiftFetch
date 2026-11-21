@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SwiftFetch — Windows download manager</title>
+  <meta name="description" content="SwiftFetch is a Windows desktop download manager built with Tauri, React, TypeScript, and Rust. Local-first, no account or telemetry required.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html">SwiftFetch</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html" aria-current="page">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="download.html">Download</a></li>
+          <li><a href="documentation.html">Documentation</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="license.html">License</a></li>
+          <li><a href="support.html">Support</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <aside class="notice" aria-label="Release status">
+      <strong>Release status — preview candidate.</strong>
+      <p>SwiftFetch is a release candidate. The current Windows installers are unsigned preview candidates and are not a safe public release yet. Download is free of charge; signing, licensing and publisher identity are still pending owner decisions.</p>
+    </aside>
+
+    <h1>SwiftFetch</h1>
+    <p class="lead">A Windows desktop download manager built with Tauri, React, TypeScript, and Rust.</p>
+
+    <p>Add an HTTP or HTTPS link to queue a download, pause or retry it, set transfer limits, or supply a trusted checksum. SwiftFetch works without a hosted account or queue service and keeps its state locally on your Windows account.</p>
+
+    <h2>What it does</h2>
+    <ul class="feature-grid">
+      <li>
+        <h3>Resumable transfers</h3>
+        <p>The transfer engine uses multiple connections for eligible files and falls back to one stream when a server ignores range requests. SQLite stores segment checkpoints so an interrupted transfer can be reconciled and resumed.</p>
+      </li>
+      <li>
+        <h3>Local queue and history</h3>
+        <p>Queue state, settings and download history are kept in the current user's <code>%APPDATA%\swiftfetch</code> directory by default. Priorities, scheduling windows and diagnostics are built in.</p>
+      </li>
+      <li>
+        <h3>Explicit control</h3>
+        <p>Task details offer collision decisions, segment ranges and checksum state. Files open only after an explicit user action, and tray controls can pause work or exit safely with a cancellable shutdown countdown.</p>
+      </li>
+      <li>
+        <h3>Optional browser handoff</h3>
+        <p>An optional extension can send a selected URL to the local app through Windows Native Messaging. It requires desktop opt-in and per-user setup, and does not forward cookies or credentials.</p>
+      </li>
+    </ul>
+
+    <h2>Local-first by design</h2>
+    <p>There is no required account and no telemetry upload. The app makes network requests only to the download source, configured proxies and redirects accepted by its URL policy. Clipboard capture is off by default. See the <a href="privacy.html">Privacy</a> page for the full local-first behavior.</p>
+
+    <h2>Permitted use</h2>
+    <p>Use SwiftFetch only for content you have permission to download. Respect copyright, authentication, DRM, paywalls, website access policies and server rate limits. SwiftFetch must not be represented as providing circumvention capabilities.</p>
+
+    <h2>Explore</h2>
+    <ul>
+      <li><a href="features.html">Features</a> — a detailed look at transfer, queue, recovery and integration features.</li>
+      <li><a href="download.html">Download</a> — status, requirements and owner placeholders for release links.</li>
+      <li><a href="documentation.html">Documentation</a> — guides and links to the canonical project documents.</li>
+      <li><a href="support.html">Support</a> — diagnostics, recovery steps and contact placeholders.</li>
+    </ul>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>SwiftFetch — Windows download manager, release candidate (version 0.1.0).</p>
+      <p>This site describes a preview candidate. Signing, distribution licensing and publisher identity are pending owner decisions; no certification is claimed.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "swiftfetch-browser-extension",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SwiftFetch browser bridge: extension, native messaging host, and protocol tests.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/test_protocol.js",
+    "icons": "node tools/generate_icons.js"
+  },
+  "license": "UNLICENSED"
+}

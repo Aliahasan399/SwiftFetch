@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation — SwiftFetch</title>
+  <meta name="description" content="SwiftFetch documentation index: overview, architecture, recovery, updates, privacy, support, permitted use and release readiness.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html">SwiftFetch</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="download.html">Download</a></li>
+          <li><a href="documentation.html" aria-current="page">Documentation</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="license.html">License</a></li>
+          <li><a href="support.html">Support</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <aside class="notice" aria-label="Release status">
+      <strong>Documentation status — draft for a release candidate.</strong>
+      <p>Project documents are drafts describing a preview candidate. Privacy, incident response, permitted-use and support drafts require the real publisher identity and contact, plus terms approval, before publication. They do not assign a project license or claim legal certification.</p>
+    </aside>
+
+    <h1>Documentation</h1>
+    <p class="lead">SwiftFetch keeps its queue, settings and download history locally. This page indexes the canonical project documents and summarizes the main workflows.</p>
+
+    <h2 id="index">Document index</h2>
+    <p>The canonical documents live in the source repository (<span class="placeholder">[OWNER: source repository URL]</span>). Their paths are listed below.</p>
+    <table>
+      <thead>
+        <tr><th scope="col">Document</th><th scope="col">What it covers</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>README.md</code></td><td>Overview, build and test on Windows, data and privacy summary, release-candidate status.</td></tr>
+        <tr><td><code>ARCHITECTURE.md</code></td><td>Execution, data model, transfer engine, scheduler, browser handoff and release boundary.</td></tr>
+        <tr><td><code>docs/PRIVACY.md</code></td><td>Local storage, network requests, clipboard, browser extension and retention behavior.</td></tr>
+        <tr><td><code>docs/SUPPORT.md</code></td><td>Diagnostics, recovery guidance, updates and installation notes.</td></tr>
+        <tr><td><code>docs/RECOVERY.md</code></td><td>Local backup, inventory export and restore procedures.</td></tr>
+        <tr><td><code>docs/UPDATES.md</code></td><td>Signed updates, publisher configuration, installation and rollback.</td></tr>
+        <tr><td><code>docs/TERMS-DRAFT.md</code></td><td>Permitted use and distribution draft (not a license).</td></tr>
+        <tr><td><code>RELEASE-READINESS.md</code></td><td>Implemented areas, public-release blockers and remaining scope.</td></tr>
+        <tr><td><code>VERIFICATION.md</code></td><td>Automated verification record and its limits.</td></tr>
+        <tr><td><code>browser-extension/README.md</code></td><td>Browser bridge protocol, loading, native host and privacy posture.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="getting-started">Getting started</h2>
+    <ol>
+      <li>Install the WebView2 Runtime and build or obtain a reviewed installer. Current installers are unsigned preview candidates; see <a href="download.html">Download</a>.</li>
+      <li>Add an HTTP or HTTPS link, or paste a permitted URL from the clipboard after the confirmation form appears.</li>
+      <li>Review task details for destination, collision decision and checksum state before the transfer completes.</li>
+      <li>Use Diagnostics for version information, error codes and local backups.</li>
+    </ol>
+    <p>Use SwiftFetch only for content you have permission to download. Respect copyright, authentication, DRM, paywalls, website access policies and server rate limits.</p>
+
+    <h2 id="recovery">Backup and recovery</h2>
+    <p>Open <strong>Diagnostics → Queue recovery → Back up metadata</strong> to create a SQLite backup in the local data folder's <code>backups</code> directory. Keep it private: it contains full URLs, local paths and saved request metadata. A shareable <strong>Export queue inventory</strong> removes URLs and request credentials but still contains local paths; review before sharing.</p>
+    <p>A restore pauses active work, validates a separate staging database and saves a consistent safety copy before activation. Restored settings cannot silently re-enable clipboard capture, browser handoff, scanner execution, shutdown requests, schedules or Replace collisions; unfinished tasks become paused or manual. If the main queue cannot open, a startup recovery page offers local backups and a <strong>Reset saved proxy</strong> action.</p>
+    <p>A local successful restore does not prove that a damaged disk or failed operating system can be recovered. Keep an independent private backup of important data.</p>
+
+    <h2 id="updates">Updates and rollback</h2>
+    <p>The app uses the pinned Tauri updater to verify Minisign signatures, and signed package versions are required. A build without publisher configuration makes no release network request and reports that updates are not configured. The user explicitly checks and confirms updates; the app verifies the currently installed release from an immutable endpoint before accepting an upgrade and caches a rollback package.</p>
+    <p>Windows Authenticode signing uses a separate publisher certificate configured through the signing overlay; update signing alone does not establish an Authenticode publisher identity. Actual publisher-signed installation and rollback on a clean machine remain external acceptance gates.</p>
+
+    <h2 id="browser">Browser handoff setup</h2>
+    <p>The optional extension uses the installed SwiftFetch executable as a Native Messaging host. Build with <code>node browser-extension/tools/package.mjs</code>, use the generated self-contained folder, then register the executable with <code>tools/register-host.ps1</code>. Desktop opt-in and per-user registration are required; unpacked extension setup and native-host registration are optional. The host rejects cookies, unexpected fields and passive capture. See <code>browser-extension/README.md</code> and <code>browser-extension/SETUP.md</code>.</p>
+
+    <h2 id="release-status">Release and verification status</h2>
+    <p><code>VERIFICATION.md</code> records local automated and packaged runtime checks and their limits. These are not public-release approval. <code>RELEASE-READINESS.md</code> lists blockers: no code-signing certificate, no selected distribution license, clean-machine install/upgrade/rollback/uninstall test still required, cold-start follow-up, browser store signing/review and publisher update endpoints. <code>VERIFICATION.md</code> also notes that no public upload, store review, 24-hour soak or actual publisher-signed installer update/rollback has been performed.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>SwiftFetch — Windows download manager, release candidate (version 0.1.0).</p>
+      <p>Replace the source repository placeholder before publishing. Documents are drafts and may change before release.</p>
+    </div>
+  </footer>
+</body>
+</html>

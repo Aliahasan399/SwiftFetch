@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support — SwiftFetch</title>
+  <meta name="description" content="SwiftFetch support: diagnostics, queue and file recovery, updates, safe reporting and owner contact placeholders.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html">SwiftFetch</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="download.html">Download</a></li>
+          <li><a href="documentation.html">Documentation</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="license.html">License</a></li>
+          <li><a href="support.html" aria-current="page">Support</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <aside class="notice" aria-label="Release status">
+      <strong>Support is not yet published for a public release.</strong>
+      <p>SwiftFetch is a release candidate with unsigned installers. The release owner must publish supported versions, response expectations, an issue-reporting location and a private security contact before public release. The entries below are placeholders.</p>
+    </aside>
+
+    <h1>Support</h1>
+
+    <h2>Report a problem safely</h2>
+    <p>Start with the Diagnostics view. Record the application version, error code, task state and the action that failed. Use the local HTTP fixture for a safe reproduction whenever possible. Do not include private download URLs or full database backups in a public report.</p>
+    <p>A shareable queue inventory removes request URLs and headers but still contains local paths; review it before sharing. A full SQLite backup contains private request data and is not a support attachment by default.</p>
+
+    <h2>Queue and file recovery</h2>
+    <ul>
+      <li>Pause a transfer before changing its destination or investigating partials.</li>
+      <li>A compatible saved checkpoint can resume after a restart. If the source changed or a working file is inconsistent, SwiftFetch restarts the affected bytes rather than combining representations.</li>
+      <li>For an existing destination under Ask, choose Rename, Replace after explicit confirmation, or Skip. Rename keeps both files; Skip keeps the original.</li>
+      <li>On disk-full or permission errors, preserve partials, free space or choose a writable destination, then retry. Never delete unrelated <code>.part</code> files by a filename pattern.</li>
+      <li>Create a consistent local backup from Diagnostics. Close the app before restoring a full SQLite backup using an offline recovery procedure. Keep the original database and its backup; do not overwrite user downloads.</li>
+      <li>A shareable inventory is for catalog recovery. Its private request URLs are omitted, so imported unfinished tasks remain paused until reviewed.</li>
+    </ul>
+    <p>See <a href="documentation.html">Documentation</a> for the backup and restore procedures.</p>
+
+    <h2>Updates and installation</h2>
+    <p>When updates are not configured, install a reviewed signed release manually after closing SwiftFetch. Keep data backups and the prior signed installer. Installer removal must preserve queue state and user-owned downloads; verify that behavior on a disposable Windows machine for each public release. Current installers are unsigned preview candidates, not a safe public release.</p>
+
+    <h2>Contact</h2>
+    <p>These placeholders must be replaced by the release owner before publication. No contact details are invented here.</p>
+    <table>
+      <thead>
+        <tr><th scope="col">Purpose</th><th scope="col">Contact</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Issue reports</td><td><span class="placeholder">[OWNER: issue-reporting URL]</span></td></tr>
+        <tr><td>Support email</td><td><span class="placeholder">[OWNER: support email]</span></td></tr>
+        <tr><td>Private security contact</td><td><span class="placeholder">[OWNER: private security contact]</span></td></tr>
+        <tr><td>Supported versions and response expectations</td><td><span class="placeholder">[OWNER: supported versions and response expectations]</span></td></tr>
+      </tbody>
+    </table>
+    <p>Do not send full database backups or private download URLs to any support channel.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>SwiftFetch — Windows download manager, release candidate (version 0.1.0).</p>
+      <p>Contact entries are owner placeholders. Support procedures are drafts pending publisher identity and approval.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SwiftFetch extension harness</title>
+    <style>
+      body {
+        font-family: "Segoe UI", system-ui, sans-serif;
+        max-width: 720px;
+        margin: 32px auto;
+        padding: 0 20px;
+        line-height: 1.5;
+      }
+      h1 { font-size: 20px; }
+      code, pre { font-family: "Cascadia Mono", Consolas, monospace; }
+      pre {
+        background: #f3f4f6;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-size: 12px;
+      }
+      .card {
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin: 14px 0;
+      }
+      a { color: #0b6bcb; }
+      button {
+        font: inherit;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: 1px solid #0b6bcb;
+        background: #fff;
+        color: #0b6bcb;
+        cursor: pointer;
+      }
+      #log {
+        background: #111827;
+        color: #d1fae5;
+        min-height: 120px;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+      .ok { color: #4ade80; }
+      .bad { color: #f87171; }
+    </style>
+  </head>
+  <body>
+    <h1>SwiftFetch extension harness</h1>
+    <p>
+      Serve this folder over HTTP (content scripts do not run on
+      <code>file://</code>):
+    </p>
+    <pre>cd browser-extension
+python -m http.server 8000
+# then open http://127.0.0.1:8000/test/test_page.html</pre>
+
+    <div class="card">
+      <strong>Content script status:</strong>
+      <span id="status">checking…</span>
+    </div>
+
+    <div class="card">
+      <h2>Gestures to try</h2>
+      <ul>
+        <li><strong>Alt+Click</strong> or <strong>Ctrl+Shift+Click</strong> a link below.</li>
+        <li>Right-click a link and choose <em>Download with SwiftFetch</em>.</li>
+        <li>Open the toolbar popup and use <em>Send this page to SwiftFetch</em>.</li>
+      </ul>
+      <p>
+        <a href="http://127.0.0.1:8000/fixtures/file.zip">http://127.0.0.1:8000/fixtures/file.zip</a>
+        <br />
+        <a href="https://example.com/report.pdf">https://example.com/report.pdf</a>
+        <br />
+        <a href="javascript:alert(1)">javascript:alert(1)</a> (must be refused)
+      </p>
+      <button id="send" type="button">Simulate a gesture for the local fixture</button>
+    </div>
+
+    <div class="card">
+      <h2>Log</h2>
+      <pre id="log"></pre>
+    </div>
+
+    <script>
+      const logEl = document.getElementById('log');
+      const statusEl = document.getElementById('status');
+
+      function log(message, kind) {
+        const line = document.createElement('div');
+        if (kind) line.className = kind;
+        line.textContent = new Date().toISOString() + '  ' + message;
+        logEl.appendChild(line);
+      }
+
+      if (window.__swiftfetchContentLoaded === true) {
+        statusEl.textContent = 'loaded';
+        statusEl.className = 'ok';
+        log('content script is present on this page.', 'ok');
+      } else {
+        statusEl.textContent = 'NOT loaded';
+        statusEl.className = 'bad';
+        log('content script is not running. Serve this page over http:// and reload.', 'bad');
+      }
+
+      document.getElementById('send').addEventListener('click', async () => {
+        const url = 'http://127.0.0.1:8000/fixtures/file.zip';
+        log('calling window.__swiftfetchSend(' + url + ')');
+        try {
+          const reply = await window.__swiftfetchSend(url, 'file.zip');
+          log('reply: ' + JSON.stringify(reply), reply && reply.ok ? 'ok' : 'bad');
+        } catch (error) {
+          log('error: ' + error, 'bad');
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,64 @@
+[package]
+name = "swiftfetch"
+version = "0.1.0"
+description = "SwiftFetch — IDM-style desktop download manager"
+authors = ["SwiftFetch"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "swiftfetch_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-opener = "2"
+tauri-plugin-updater = "=2.14.1"
+tauri-plugin-clipboard-manager = "=2.5.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+futures-util = "0.3"
+
+# HTTP client — default-tls resolves to schannel on Windows (no OpenSSL build step)
+reqwest = { version = "0.12", features = ["stream", "json"] }
+
+# Storage
+rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+
+# Utilities
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+bytes = "1"
+once_cell = "1"
+url = "2"
+sha1 = "0.10"
+md-5 = "0.10"
+
+[target.'cfg(windows)'.dependencies]
+windows-registry = "=0.6.1"
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+base64 = "=0.22.1"
+tempfile = "3"
+ureq = { version = "2", features = ["json"] }
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

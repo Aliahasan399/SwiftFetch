@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SwiftFetch</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+        font-size: 13px;
+      }
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 12px 14px 14px;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0 0 2px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .sub {
+        color: #6b7280;
+        font-size: 11px;
+        margin: 0 0 12px;
+        line-height: 1.4;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 7px 0;
+        border-top: 1px solid rgba(128, 128, 128, 0.25);
+      }
+      .row label {
+        font-weight: 600;
+      }
+      .row .hint {
+        display: block;
+        font-weight: 400;
+        color: #6b7280;
+        font-size: 11px;
+        margin-top: 2px;
+      }
+      select,
+      button {
+        font: inherit;
+      }
+      select {
+        max-width: 150px;
+        padding: 3px 6px;
+      }
+      button {
+        width: 100%;
+        margin-top: 10px;
+        padding: 7px 10px;
+        border: 0;
+        border-radius: 6px;
+        background: #1a7f37;
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #6b7280;
+        cursor: not-allowed;
+      }
+      .switch {
+        position: relative;
+        width: 38px;
+        height: 20px;
+        flex: none;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .slider {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: #9ca3af;
+        transition: background 0.15s ease;
+      }
+      .slider::before {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        left: 2px;
+        top: 2px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.15s ease;
+      }
+      .switch input:checked + .slider {
+        background: #1a7f37;
+      }
+      .switch input:checked + .slider::before {
+        transform: translateX(18px);
+      }
+      #status {
+        margin-top: 10px;
+        min-height: 16px;
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      #status.error {
+        color: #b91c1c;
+      }
+      #status.ok {
+        color: #15803d;
+      }
+      code {
+        font-size: 11px;
+        word-break: break-all;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>
+      <img src="icons/32.png" width="20" height="20" alt="" />
+      SwiftFetch
+    </h1>
+    <p class="sub">
+      Capture is gesture-only: Alt+Click or Ctrl+Shift+Click a link, or right-click
+      it and choose <em>Download with SwiftFetch</em>. No cookies or credentials are
+      ever sent.
+    </p>
+
+    <div class="row">
+      <label for="enabled">Browser capture<span class="hint">Master switch for this extension.</span></label>
+      <span class="switch">
+        <input type="checkbox" id="enabled" checked />
+        <span class="slider"></span>
+      </span>
+    </div>
+
+    <div class="row">
+      <label for="rule">This site<span class="hint" id="originLabel">No active tab.</span></label>
+      <select id="rule">
+        <option value="ask">Ask each time</option>
+        <option value="allow">Allow automatically</option>
+        <option value="deny">Block</option>
+      </select>
+    </div>
+
+    <button id="send" type="button" disabled>Send this page to SwiftFetch</button>
+    <div id="status" role="status" aria-live="polite"></div>
+
+    <!-- Classic preload: defines globalThis.SwiftFetchProtocol and
+         globalThis.SwiftFetchNativeResponse without a dynamic import. The
+         module copies in shared/*.js keep the same code for Node tests and the
+         Chrome MV3 service worker. -->
+    <script src="shared/protocol.bundle.js"></script>
+    <script src="shared/native-response.bundle.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

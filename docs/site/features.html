@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Features — SwiftFetch</title>
+  <meta name="description" content="Transfer engine, queue and scheduling, recovery, desktop integration and browser handoff features in SwiftFetch.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html">SwiftFetch</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html" aria-current="page">Features</a></li>
+          <li><a href="download.html">Download</a></li>
+          <li><a href="documentation.html">Documentation</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="license.html">License</a></li>
+          <li><a href="support.html">Support</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <aside class="notice" aria-label="Release status">
+      <strong>Release status — preview candidate.</strong>
+      <p>These features are implemented in a Windows release candidate. The installers are unsigned preview candidates and are not a safe public release yet. See <a href="download.html">Download</a> for status details.</p>
+    </aside>
+
+    <h1>Features</h1>
+    <p class="lead">SwiftFetch is a Windows x64 desktop application with a React and TypeScript interface in a Tauri WebView2 window and a Rust transfer engine.</p>
+
+    <h2>Transfer engine</h2>
+    <ul>
+      <li>Add an HTTP or HTTPS link to queue a download; pause, retry or set transfer limits.</li>
+      <li>The engine probes the source and chooses bounded range requests when the server supports them. Multiple connections are used for eligible files, with a single-stream fallback when range requests are ignored.</li>
+      <li>A dedicated writer writes task-owned working files. Finalization checks file size and any supplied checksum before publishing the result.</li>
+      <li>A user-configured local scanner command can run asynchronously with a deadline. Checksum and antivirus results have limited meanings and do not guarantee that content is safe.</li>
+      <li>Downloaded files open only after an explicit user action.</li>
+    </ul>
+
+    <h2>Queue, scheduling and limits</h2>
+    <ul>
+      <li>SQLite stores queues, task metadata, schedules, segment checkpoints and settings. An interrupted transfer is reconciled to a recoverable status on startup.</li>
+      <li>One desktop scheduler owns a queue database at a time; a filesystem lock prevents a second scheduler for the same database.</li>
+      <li>Priorities, queue windows, overnight weekdays and a completion or window-end request are supported.</li>
+      <li>Shutdown requests offer a 60-second cancellation countdown before an operating-system request. Windows sleep prevention runs on a dedicated OS thread.</li>
+      <li>Global and per-task limits plus a configured HTTP(S) proxy connection are available.</li>
+      <li>Categories and automatic extension rules choose validated destination folders.</li>
+    </ul>
+
+    <h2>Control and collision handling</h2>
+    <ul>
+      <li>Task details offer explicit collision decisions: Rename, Replace after explicit confirmation, or Skip. Rename keeps both files; Skip keeps the original and removes only that task's new working file.</li>
+      <li>Verified bytes are not redownloaded. A compatible saved checkpoint can resume after a restart; inconsistent working files restart the affected bytes.</li>
+      <li>History uses cursor queries that filter before limiting, and refresh reconciles all loaded pages.</li>
+      <li>Metadata retention, bounded logs and opt-in cleanup of task-owned failed partials are available.</li>
+    </ul>
+
+    <h2>Backup and recovery</h2>
+    <ul>
+      <li>Diagnostics can create a consistent local SQLite backup, including queue rows, checkpoints, categories, schedules and settings.</li>
+      <li>A separate queue inventory export removes URLs and request credentials but still contains filenames and local paths; review it before sharing.</li>
+      <li>A startup recovery page appears when the queue or saved proxy cannot initialize. Restores validate the backup in a staging database and preserve the original files in a unique safety folder.</li>
+      <li>Restored settings cannot silently re-enable clipboard capture, browser handoff, scanner execution, shutdown requests, schedules or Replace collisions. See <a href="documentation.html">Documentation</a>.</li>
+    </ul>
+
+    <h2>Desktop integration</h2>
+    <ul>
+      <li>Tray controls can pause work or exit safely.</li>
+      <li>Clipboard capture is opt-in; detecting a URL opens a confirmation form and does not start a transfer by itself. URL drag/drop also opens a confirmation form.</li>
+      <li>The shell provides typed English and Bengali dictionaries with English fallback for untranslated text. It is not fully translated or independently certified for accessibility.</li>
+    </ul>
+
+    <h2>Optional browser handoff</h2>
+    <ul>
+      <li>Uses a short-lived Native Messaging host that validates one framed intent, checks a local opt-in setting and saves the task for the existing scheduler.</li>
+      <li>Accepts an explicit user gesture, HTTP(S) URL, safe filename, originating page origin, a versioned protocol and a short expiry. Cookies and unexpected fields are rejected.</li>
+      <li>A transaction records a replay receipt and the task together so a repeat request cannot duplicate the operation. The per-user browser host manifest restricts which extension can launch the host.</li>
+      <li>When the desktop app is closed, the queued task remains until it opens.</li>
+    </ul>
+
+    <h2>Signed updates and rollback</h2>
+    <p>Updater code supports publisher-configured signed-version checks, verified rollback preflight, an installer helper and health monitoring. An unconfigured build makes no release network request. Actual publisher-signed installation and rollback on a clean machine remain untested release gates. See <a href="documentation.html">Documentation</a>.</p>
+
+    <h2>Scope boundary</h2>
+    <p>The initial delivery targets HTTP and HTTPS on Windows. Torrent, FTP, cloud sync, media extraction, remote control and mandatory online licensing are outside the initial product. Download speed depends on the source, connection, server policies, storage and device resources; multiple connections are an optimization and do not guarantee a particular improvement.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>SwiftFetch — Windows download manager, release candidate (version 0.1.0).</p>
+      <p>Feature descriptions reflect the release-candidate implementation, not a public-release approval.</p>
+    </div>
+  </footer>
+</body>
+</html>

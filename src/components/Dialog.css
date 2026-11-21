@@ -1,0 +1,14 @@
+.dialog { width: min(560px, calc(100vw - 32px)); max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); margin: auto; padding: 0; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 13px; box-shadow: var(--shadow); overflow-y: auto; overscroll-behavior: contain; }
+.dialog-wide { width: min(790px, calc(100vw - 32px)); }
+.dialog::backdrop { background: #020711b8; backdrop-filter: blur(3px); }
+.dialog-header { position: sticky; inset-block-start: 0; z-index: 2; display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 22px 25px 18px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.dialog-header h2 { font-size: 20px; margin: 0 0 6px; }
+.dialog-header p { color: var(--muted); font-size: 12px; margin: 0; }
+.dialog-header .icon-button { margin-top: -3px; margin-inline-end: -6px; }
+.dialog-body { padding: 23px 25px; }
+.dialog-footer { position: sticky; inset-block-end: 0; z-index: 2; display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 16px 25px; border-top: 1px solid var(--border); background: var(--surface); }
+.confirm-copy { color: var(--muted); font-size: 13px; line-height: 1.7; }
+.confirm-copy strong { color: var(--text); }
+.confirm-copy ul { padding-inline-start: 21px; }
+.confirm-copy li + li { margin-top: 7px; }
+@media (max-width: 520px) { .dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); } .dialog-header, .dialog-body, .dialog-footer { padding: 17px; } }
