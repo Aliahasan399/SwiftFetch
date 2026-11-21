@@ -1,6 +1,10 @@
 # SwiftFetch — Final GO / NO-GO Report
 
-**Version:** 0.1.0 · **Date:** 2026-11-21 · **Repo:** `E:\CloneIdm\swiftfetch` (not a git repo; source snapshot hash used instead of commit).
+**Version:** 0.1.0 · **Date:** 2026-11-21 · **Repo:** `E:\CloneIdm\swiftfetch`.
+**Correction (Phase 1 audit):** the original snapshot text said "not a git repo; source
+snapshot hash used instead of commit". That was accurate when written but is now stale:
+the workspace is a Git repository on `main` with a remote at
+`https://github.com/Aliahasan399/SwiftFetch.git`. The verdict and all gates below are unchanged.
 
 ## Verdict: **NO-GO**
 
