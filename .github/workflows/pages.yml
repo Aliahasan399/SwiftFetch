@@ -1,0 +1,42 @@
+name: Deploy GitHub Pages
+
+# Publishes docs/site/ through GitHub Pages using the official Actions flow.
+# Least-privilege permissions; no application secrets are used.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+      # Version-tagged (not SHA-pinned): verify and pin to real commit SHAs
+      # in a follow-up before treating this as a hardened workflow.
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./docs/site
+      - id: deployment
+        uses: actions/deploy-pages@v5
