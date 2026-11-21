@@ -1,0 +1,296 @@
+name: Release draft (manual, fail-closed)
+
+# ---------------------------------------------------------------------------
+# SAFETY NOTICE — READ BEFORE EDITING
+#
+# This workflow is MANUAL-TRIGGER ONLY (`workflow_dispatch`). It must NEVER
+# auto-publish. Do NOT add `push`, `tags`, `release`, `schedule`,
+# `pull_request`, or any other event trigger to this file. A tag-push
+# auto-release is exactly the failure mode this file exists to prevent.
+#
+# The v0.1.0 candidate is currently NO-GO and UNSIGNED. This workflow
+# therefore FAILS CLOSED: every gate below must pass, and the gates require a
+# signed/approved artifact attestation plus an explicit owner confirmation.
+# When any gate fails, no release, tag, draft, or asset is created.
+#
+# The workflow creates a DRAFT release only. Publishing a draft is a separate,
+# deliberate human action on the GitHub web UI. Nothing here publishes.
+#
+# No secrets are read. The only credential is the built-in GITHUB_TOKEN,
+# elevated to `contents: write` on the single job that creates the draft and
+# to nothing else.
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag. MUST be v0.1.0 (hard gate)."
+        type: string
+        default: "v0.1.0"
+        required: true
+      source_ref:
+        description: "Git ref or commit the artifacts were built from (no default; must be supplied)."
+        type: string
+        required: false
+      owner_confirmation:
+        description: "Owner confirmation. Type EXACTLY: CONFIRM RELEASE v0.1.0"
+        type: string
+        required: false
+      no_go_cleared:
+        description: "Owner attests the NO-GO gate is cleared. Must be true."
+        type: boolean
+        default: false
+        required: false
+      artifact_dir:
+        description: "Repo-relative path to the staged candidate artifacts."
+        type: string
+        default: "artifacts/SwiftFetch-0.1.0-candidate-c02155f813444b23b6b023f4a212bfe1"
+        required: false
+      source_zip_dir:
+        description: "Repo-relative path to the newest staged source zip + SHA256SUMS."
+        type: string
+        default: "artifacts/source/0.1.0-07a66ecd41d54ccdbb8fedbd6e4162a1"
+        required: false
+      attestation_ref:
+        description: "Signed/approved artifact attestation: https URL or repo-relative path (required; fail-closed if absent)."
+        type: string
+        required: false
+      attestation_expected_sha256:
+        description: "SHA-256 (64 lowercase hex) of the attestation document (required; fail-closed if absent)."
+        type: string
+        required: false
+      create_draft:
+        description: "Create the DRAFT release when all gates pass. Publishing stays manual."
+        type: boolean
+        default: true
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Gate (fail-closed checks)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # v4.3.0 (major-version pin)
+        with:
+          persist-credentials: false
+
+      - name: Validate tag/version consistency (must be v0.1.0 / 0.1.0)
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          SOURCE_REF: ${{ github.event.inputs.source_ref }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SOURCE_REF" ]; then
+            echo "::error::source_ref is required — fail closed."
+            exit 1
+          fi
+          case "$RELEASE_TAG" in
+            v0.1.0) ;;
+            *) echo "::error::release_tag must be exactly v0.1.0, got '$RELEASE_TAG'"; exit 1 ;;
+          esac
+          PKG="$(node -p "require('./package.json').version")"
+          TAURI="$(node -p "require('./src-tauri/tauri.conf.json').version")"
+          if [ "$PKG" != "0.1.0" ] || [ "$TAURI" != "0.1.0" ]; then
+            echo "::error::version mismatch — package.json=$PKG tauri.conf.json=$TAURI (expected 0.1.0)"
+            exit 1
+          fi
+          echo "OK: tag=$RELEASE_TAG package.json=$PKG ta$TAURI=$TAURI"
+
+      - name: Require explicit owner confirmation
+        env:
+          CONFIRM: ${{ github.event.inputs.owner_confirmation }}
+          NOGO: ${{ github.event.inputs.no_go_cleared }}
+        run: |
+          set -euo pipefail
+          if [ "$CONFIRM" != "CONFIRM RELEASE v0.1.0" ]; then
+            echo "::error::owner_confirmation missing or incorrect — fail closed."
+            exit 1
+          fi
+          if [ "$NOGO" != "true" ]; then
+            echo "::error::no_go_cleared is not true — NO-GO is still standing — fail closed."
+            exit 1
+          fi
+          echo "OK: owner confirmed and NO-GO cleared."
+
+      - name: Require signed/approved artifact attestation (fail-closed)
+        env:
+          ATTESTATION_REF: ${{ github.event.inputs.attestation_ref }}
+          ATTESTATION_SHA256: ${{ github.event.inputs.attestation_expected_sha256 }}
+          ARTIFACT_DIR: ${{ github.event.inputs.artifact_dir }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "$ATTESTATION_REF" ] || [ -z "$ATTESTATION_SHA256" ]; then
+            echo "::error::attestation input(s) missing — an approved/signed artifact attestation is REQUIRED; fail closed."
+            exit 1
+          fi
+          case "$ATTESTATION_REF" in
+            http://*|https://*) curl -fsSL -o attestation.json "$ATTESTATION_REF" ;;
+            *) cp "$ATTESTATION_REF" attestation.json ;;
+          esac
+          ACTUAL="$(sha256sum attestation.json | cut -d' ' -f1)"
+          if [ "$ACTUAL" != "$ATTESTATION_SHA256" ]; then
+            echo "::error::attestation hash mismatch — expected $ATTESTATION_SHA256 got $ACTUAL — fail closed."
+            exit 1
+          fi
+          node -e '
+            const fs = require("fs");
+            const a = JSON.parse(fs.readFileSync("attestation.json", "utf8"));
+            const problems = [];
+            if (a.release_tag !== process.env.RELEASE_TAG) problems.push(`release_tag=${a.release_tag}`);
+            if (a.release_approved !== true) problems.push("release_approved is not true");
+            if (a.signed !== true) problems.push("attestation is not marked signed");
+            const sums = {};
+            for (const line of fs.readFileSync(`${process.env.ARTIFACT_DIR}/SHA256SUMS`, "utf8").split(/\r?\n/)) {
+              const m = /^([a-f0-9]{64})\s+\*?(.+)$/.exec(line);
+              if (m) sums[m[2]] = m[1];
+            }
+            for (const [name, digest] of Object.entries(a.installer_digests || {})) {
+              if (!sums[name]) problems.push(`attestation names unknown asset: ${name}`);
+              else if (sums[name] !== digest.toLowerCase()) problems.push(`digest mismatch for ${name}`);
+            }
+            if (!a.installer_digests || Object.keys(a.installer_digests).length === 0)
+              problems.push("attestation lists no installer digests");
+            if (problems.length) {
+              console.error("Attestation content problems: " + problems.join("; "));
+              process.exit(1);
+            }
+            console.log("OK: attestation approved, signed, and digests match SHA256SUMS.");
+          '
+
+  verify-assets:
+    name: Verify assets against SHA256SUMS
+    needs: gate
+    runs-on: windows-2022
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # v4.3.0 (major-version pin)
+        with:
+          persist-credentials: false
+
+      - name: Recompute SHA-256 of every listed artifact (must all match)
+        env:
+          ARTIFACT_DIR: ${{ github.event.inputs.artifact_dir }}
+          SOURCE_ZIP_DIR: ${{ github.event.inputs.source_zip_dir }}
+        shell: pwsh
+        run: |
+          $bad = 0
+          foreach ($dir in @($env:ARTIFACT_DIR, $env:SOURCE_ZIP_DIR)) {
+            $sums = Join-Path $dir "SHA256SUMS"
+            if (-not (Test-Path $sums)) { Write-Error "MISSING SHA256SUMS: $dir"; $bad++; continue }
+            foreach ($line in Get-Content $sums) {
+              if ($line -match '^([a-fA-F0-9]{64})\s+\*?(.+)$') {
+                $expected = $Matches[1].ToLower()
+                $file = Join-Path $dir $Matches[2]
+                if (-not (Test-Path $file)) { Write-Error "MISSING: $($Matches[2])"; $bad++; continue }
+                $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $file).Hash.ToLower()
+                if ($actual -ne $expected) { Write-Error "MISMATCH: $($Matches[2]) expected $expected got $actual"; $bad++ }
+              }
+            }
+          }
+          if ($bad -gt 0) { exit 1 }
+          Write-Host "OK: every SHA256SUMS entry verified (candidate artifacts + source zip)."
+
+      - name: Confirm required release assets are present
+        shell: pwsh
+        env:
+          ARTIFACT_DIR: ${{ github.event.inputs.artifact_dir }}
+        run: |
+          $required = @(
+            "SwiftFetch_0.1.0_x64-setup.exe",
+            "SwiftFetch_0.1.0_x64_en-US.msi",
+            "SHA256SUMS"
+          )
+          $missing = @()
+          foreach ($name in $required) {
+            if (-not (Test-Path (Join-Path $env:ARTIFACT_DIR $name))) { $missing += $name }
+          }
+          if (-not (Test-Path "THIRD_PARTY_NOTICES.md")) { $missing += "THIRD_PARTY_NOTICES.md" }
+          if (-not (Test-Path "artifact-dir notices")) {
+            $notices = Join-Path $env:ARTIFACT_DIR "notices"
+            if (-not (Test-Path $notices)) { $missing += "notices/" }
+          }
+          if ($missing.Count -gt 0) { Write-Error "MISSING ASSETS: $($missing -join ', ')"; exit 1 }
+          Write-Host "OK: NSIS installer, MSI installer, SHA256SUMS, THIRD_PARTY notices present."
+
+  publish-draft:
+    name: Create draft release (draft only)
+    needs: [gate, verify-assets]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.create_draft == 'true' }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 # v4.3.0 (major-version pin)
+        with:
+          persist-credentials: false
+
+      - name: Write draft release notes (embedded user verification steps)
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          {
+            echo "SwiftFetch $RELEASE_TAG (Windows x64) — DRAFT"
+            echo ""
+            echo "> DO NOT PUBLISH. This draft may not be made public until the NO-GO gate is"
+            echo "> cleared and the owner approves publication. Current artifacts are UNSIGNED."
+            echo ""
+            echo "## Verify your download (do this before installing)"
+            echo ""
+            echo "Windows PowerShell, from the folder containing the downloaded files:"
+            echo '```powershell'
+            echo "Get-FileHash -Algorithm SHA256 .\SwiftFetch_0.1.0_x64-setup.exe"
+            echo "Get-FileHash -Algorithm SHA256 .\SwiftFetch_0.1.0_x64_en-US.msi"
+            echo "```"
+            echo "Compare each \`Hash\` (case-insensitive) with the matching filename line inside"
+            echo "SHA256SUMS from the same release page. They must match exactly."
+            echo ""
+            echo "Command Prompt alternative:"
+            echo '```bat'
+            echo "certutil -hashfile SwiftFetch_0.1.0_x64-setup.exe SHA256"
+            echo "```"
+            echo ""
+            echo "If any hash does not match, do not run the installer. A matching checksum proves"
+            echo "the file is the one published, not that the publisher is trusted; these builds"
+            echo "are not code-signed."
+            echo ""
+            echo "## Assets"
+            echo "- SwiftFetch_0.1.0_x64-setup.exe (NSIS installer)"
+            echo "- SwiftFetch_0.1.0_x64_en-US.msi (MSI installer)"
+            echo "- SwiftFetch-0.1.0-source.zip (source archive)"
+            echo "- SHA256SUMS (checksums for the files above)"
+            echo "- THIRD_PARTY_NOTICES.md (third-party licenses)"
+            echo ""
+            echo "See docs/release/RELEASE_PUBLICATION_READINESS.md for the full checklist."
+          } > release-draft-notes.md
+
+      - name: Create the draft release (never published automatically)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          ARTIFACT_DIR: ${{ github.event.inputs.artifact_dir }}
+          SOURCE_ZIP_DIR: ${{ github.event.inputs.source_zip_dir }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            --draft \
+            --title "SwiftFetch $RELEASE_TAG (Windows x64) — DRAFT, DO NOT PUBLISH" \
+            --notes-file release-draft-notes.md \
+            "$ARTIFACT_DIR/SwiftFetch_0.1.0_x64-setup.exe" \
+            "$ARTIFACT_DIR/SwiftFetch_0.1.0_x64_en-US.msi" \
+            "$SOURCE_ZIP_DIR/SwiftFetch-0.1.0-source.zip" \
+            "$ARTIFACT_DIR/SHA256SUMS" \
+            "THIRD_PARTY_NOTICES.md"
