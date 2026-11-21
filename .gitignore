@@ -58,3 +58,8 @@ __pycache__/
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary editor/agent scratch files
+.hermes-tmp.*
+*.tmp
+
