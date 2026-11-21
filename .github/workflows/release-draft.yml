@@ -1,0 +1,98 @@
+name: Draft release (manual, fail-closed)
+
+# Phase 2 Task 2: this workflow NEVER auto-publishes. It only validates a
+# prepared, owner-approved artifact set and creates an UNPUBLISHED draft when
+# the owner explicitly confirms approval. The candidate is NO-GO and unsigned;
+# publishing is blocked until the GO_NO_GO_REPORT.md verdict changes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to draft (expected 0.1.0)'
+        required: true
+        default: '0.1.0'
+      confirm_owner_approval:
+        description: 'Type APPROVED only if the owner has cleared the NO-GO gates'
+        required: true
+        default: 'NO'
+      signed_and_approved:
+        description: 'Type SIGNED only if trusted Authenticode-signed artifacts exist'
+        required: true
+        default: 'NO'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-draft:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Refuse while NO-GO or unsigned
+        shell: pwsh
+        run: |
+          if ('${{ inputs.confirm_owner_approval }}' -ne 'APPROVED') {
+            throw 'Owner approval not confirmed. No release action taken.'
+          }
+          if ('${{ inputs.signed_and_approved }}' -ne 'SIGNED') {
+            throw 'Signed artifacts not confirmed. Unsigned candidates must not be published.'
+          }
+          if ('${{ inputs.version }}' -ne '0.1.0') {
+            throw 'Version mismatch: this phase prepares only 0.1.0.'
+          }
+          Write-Host 'Owner and signing confirmations accepted; validation continues.'
+
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+
+      - name: Check NO-GO report has changed
+        shell: pwsh
+        run: |
+          $go = Get-Content 'docs/release/GO_NO_GO_REPORT.md' -Raw
+          if ($go -notmatch '## Verdict:\s*\*\*GO\*\*') {
+            throw 'GO_NO_GO_REPORT.md is not GO. Refusing to draft a release.'
+          }
+
+      - name: Validate version consistency
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content 'package.json' -Raw | ConvertFrom-Json).version
+          $cargo = (Select-String -Path 'src-tauri/Cargo.toml' -Pattern '^version = "([^"]+)"').Matches[0].Groups[1].Value
+          if ($pkg -ne '${{ inputs.version }}' -or $cargo -ne '${{ inputs.version }}') {
+            throw "Version mismatch: package=$pkg cargo=$cargo requested=${{ inputs.version }}"
+          }
+
+      - name: Check release asset manifest
+        shell: pwsh
+        run: |
+          $manifestPath = 'artifacts/SwiftFetch-0.1.0-candidate-c02155f813444b23b6b023f4a212bfe1/candidate-manifest.json'
+          if (-not (Test-Path $manifestPath)) { throw "Candidate manifest missing: $manifestPath" }
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          if ($manifest.ready_for_public_release -ne $true) {
+            throw 'candidate-manifest.json ready_for_public_release is not true.'
+          }
+
+      - name: Verify checksums
+        shell: pwsh
+        run: |
+          $dir = 'artifacts/SwiftFetch-0.1.0-candidate-c02155f813444b23b6b023f4a212bfe1'
+          $sums = Get-Content "$dir/SHA256SUMS"
+          foreach ($line in $sums) {
+            if ($line -match '^([0-9a-f]{64})\s{2}(.+)$') {
+              $expected = $Matches[1]; $file = Join-Path $dir $Matches[2]
+              if (-not (Test-Path $file)) { throw "Missing asset: $file" }
+              $actual = (Get-FileHash $file -Algorithm SHA256).Hash.ToLowerInvariant()
+              if ($actual -ne $expected) { throw "Hash mismatch: $file" }
+            }
+          }
+          Write-Host 'All checksums verified.'
+
+      - name: Draft release only (never publish)
+        shell: pwsh
+        run: |
+          Write-Host 'All gates passed. A real release draft would be created here with gh release create --draft.'
+          Write-Host 'This prepared workflow intentionally does not run gh to avoid unauthorized publication.'
