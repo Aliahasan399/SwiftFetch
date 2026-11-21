@@ -24,7 +24,7 @@ choose it or claim legal clearance.
    SPDX expression; cross-checked counts against `THIRD-PARTY-NOTICES.md` and the SBOM.
 3. **Missing-text detection:** selected all entries where `license_files` is empty. Exactly seven
    matched; each was re-verified against the local cargo registry source directory
-   (`C:\Users\Ali Ahasan\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\<crate>-<version>`):
+   (`C:\Users\<user>\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\<crate>-<version>`):
    all seven declared a `license` in `Cargo.toml` but shipped **no** LICENSE/LICENCE/COPYING/NOTICE
    file in the published tarball. Upstream repositories were checked for the canonical text
    (GitHub `contents/` API), and per-file MPL headers were inspected in the installed source.
