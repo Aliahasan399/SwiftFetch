@@ -115,6 +115,18 @@
 | P14.1-6 | Owner fills placeholders, answers provider questions, verifies identity, approves submission | BLOCKED_OWNER | — | awaiting explicit owner authorization |
 | P14.1-7 | Submit application / install workflow / activate signing | BLOCKED_OWNER | — | explicitly not performed |
 
+### Phase 14.3 — Smart Download Experience implementation (owner authorized)
+| Task ID | Description | Status | Agent | Evidence |
+|---|---|---|---|---|
+| P14.3-0 | Protocol v2 and canonical Rust stdio transport | COMPLETED | parent | `browser-extension/shared/protocol.js`, `native_host.rs` |
+| P14.3-1 | Smart Download Confirmation (interception, pending store, UI) | COMPLETED | parent | `commands.rs`, `store.rs`, `BrowserDownloadConfirmation.tsx`, browser harness tests |
+| P14.3-2 | Direct video/audio detection | COMPLETED | parent | `shared/media-detect.js`, `test_media.js` |
+| P14.3-3 | Floating media indicator and panel | PARTIAL | parent | `shared/media-indicator.js`; no real-browser visual evidence |
+| P14.3-4 | Media quality/format selection | COMPLETED | parent | panel + confirmation variant selection |
+| P14.3-5 | HLS/DASH support | PARTIAL | parent | `media_manifest.rs`; segment assembly unsupported by design |
+| P14.3-6 | Cross-browser testing | PARTIAL | parent | harness/package tests; real browsers not executed |
+| P14.3-7 | Security, regression, release verification | COMPLETED (automated) | parent | `artifacts/verification/report-20261122-132627.json`; 8/8 checks; `SWIFTFETCH_SMART_DOWNLOAD_EXPERIENCE_TEST_REPORT.md` |
+
 ### Phase 14.2 — SignPath inquiry waiting stage (controlled, no approval)
 | Task ID | Description | Status | Agent | Evidence |
 |---|---|---|---|---|

@@ -3,7 +3,7 @@
   "name": "SwiftFetch Download Bridge",
   "version": "0.1.0",
   "description": "Hand an explicit download action to the SwiftFetch desktop app. Never inspects or transmits browsing traffic.",
-  "permissions": ["contextMenus", "storage", "nativeMessaging", "tabs"],
+  "permissions": ["contextMenus", "storage", "nativeMessaging", "tabs", "downloads"],
   "background": {
     "scripts": [
       "shared/protocol.bundle.js",
@@ -15,7 +15,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["../chrome/content.js"],
+      "js": ["../shared/protocol.bundle.js", "../shared/media-detect.bundle.js", "../shared/media-indicator.bundle.js", "../chrome/content.js"],
       "run_at": "document_idle",
       "all_frames": false
     }

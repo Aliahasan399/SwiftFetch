@@ -14,12 +14,17 @@ for (const browser of ['chromium', 'firefox']) {
   await mkdir(path.join(output, 'icons'));
   const source = browser === 'chromium' ? 'chrome' : 'firefox';
   const manifest = JSON.parse(await readFile(path.join(root, source, 'manifest.json'), 'utf8'));
-  const canonical = JSON.stringify(manifest, null, 2).replaceAll('../chrome/', '');
+  const canonical = JSON.stringify(manifest, null, 2)
+    .replaceAll('../chrome/', '')
+    .replaceAll('../shared/', './shared/');
   await writeFile(path.join(output, 'manifest.json'), `${canonical}\n`, { flag: 'wx' });
   const worker = await readFile(path.join(root, source, 'background.js'), 'utf8');
   await writeFile(path.join(output, 'background.js'), worker.replaceAll("'../shared/", "'./shared/"), { flag: 'wx' });
   for (const file of ['content.js', 'popup.js', 'popup.html']) await copyFile(path.join(root, 'chrome', file), path.join(output, file));
-  for (const file of ['protocol.js', 'native-response.js', 'protocol.bundle.js', 'native-response.bundle.js']) await copyFile(path.join(root, 'shared', file), path.join(output, 'shared', file));
+  for (const file of [
+    'protocol.js', 'native-response.js', 'protocol.bundle.js', 'native-response.bundle.js',
+    'media-detect.js', 'media-detect.bundle.js', 'media-indicator.js', 'media-indicator.bundle.js',
+  ]) await copyFile(path.join(root, 'shared', file), path.join(output, 'shared', file));
   for (const size of [16, 32, 48, 128]) await copyFile(path.join(root, 'chrome', 'icons', `${size}.png`), path.join(output, 'icons', `${size}.png`));
 }
 console.log(destination);

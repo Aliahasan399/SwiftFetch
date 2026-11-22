@@ -69,7 +69,12 @@ fn seeds_default_queue_and_category() {
     // Idempotent: calling again returns the same ids.
     assert_eq!(store.ensure_default_queue().unwrap(), "default");
     assert_eq!(store.list_queues().unwrap().len(), 1);
-    assert_eq!(store.list_categories().unwrap().len(), 1);
+    // One default plus the six confirmation presets seeded by Phase 1.
+    let categories = store.list_categories().unwrap();
+    assert_eq!(categories.len(), 7);
+    for id in ["videos", "music", "documents", "programs", "compressed", "other"] {
+        assert!(categories.iter().any(|category| category.id == id), "missing preset {id}");
+    }
 }
 
 #[test]

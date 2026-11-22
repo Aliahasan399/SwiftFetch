@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Hand an explicit download action to the SwiftFetch desktop app. Never inspects or transmits browsing traffic.",
   "minimum_chrome_version": "92",
-  "permissions": ["contextMenus", "storage", "nativeMessaging", "tabs"],
+  "permissions": ["contextMenus", "storage", "nativeMessaging", "tabs", "downloads"],
   "host_permissions": [],
   "background": {
     "service_worker": "background.js",
@@ -13,7 +13,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "js": ["../shared/protocol.bundle.js", "../shared/media-detect.bundle.js", "../shared/media-indicator.bundle.js", "content.js"],
       "run_at": "document_idle",
       "all_frames": false
     }

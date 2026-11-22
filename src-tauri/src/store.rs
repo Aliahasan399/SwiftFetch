@@ -99,6 +99,23 @@ pub struct TaskRow {
     pub completed_at: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct PendingConfirmationRow {
+    pub id: String,
+    pub url: String,
+    pub page_origin: String,
+    pub suggested_name: Option<String>,
+    pub content_type: String,
+    pub size_hint: Option<i64>,
+    pub mime: Option<String>,
+    pub kind: String,
+    pub site_rule: String,
+    pub media_json: String,
+    pub settings_json: String,
+    pub created_at: String,
+    pub expires_at: String,
+}
+
 /// Outcome of an `encrypt_saved_secrets` migration. Safe to return to the UI:
 /// it contains counts and a boolean only — never header values or secrets.
 #[derive(Debug, Clone, serde::Serialize)]
@@ -138,6 +155,34 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(2))?;
         conn.pragma_update(None, "foreign_keys", "ON")?;
         Ok(Self { conn: Mutex::new(conn), path: path.to_path_buf() })
+    }
+
+    /// Ensure the pending-confirmation table exists for short-lived native-host
+    /// processes that open an already-initialized database without running the
+    /// full migration path.
+    pub(crate) fn ensure_pending_schema(&self) -> rusqlite::Result<()> {
+        let conn = self.conn();
+        conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS pending_confirmations (
+              id TEXT PRIMARY KEY,
+              url TEXT NOT NULL,
+              page_origin TEXT NOT NULL,
+              suggested_name TEXT,
+              content_type TEXT NOT NULL,
+              size_hint INTEGER,
+              mime TEXT,
+              kind TEXT NOT NULL DEFAULT 'ordinary',
+              site_rule TEXT NOT NULL DEFAULT 'ask',
+              media_json TEXT NOT NULL DEFAULT '{}',
+              settings_json TEXT NOT NULL DEFAULT '{}',
+              state TEXT NOT NULL DEFAULT 'pending',
+              created_at TEXT NOT NULL,
+              expires_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_pending_confirmations_state ON pending_confirmations(state, expires_at);
+            "#,
+        )
     }
 
     pub fn count_tasks(&self) -> rusqlite::Result<i64> {
@@ -285,6 +330,25 @@ impl Store {
             );
 
             CREATE INDEX IF NOT EXISTS idx_event_log_download ON event_log(download_id);
+
+            CREATE TABLE IF NOT EXISTS pending_confirmations (
+              id TEXT PRIMARY KEY,
+              url TEXT NOT NULL,
+              page_origin TEXT NOT NULL,
+              suggested_name TEXT,
+              content_type TEXT NOT NULL,
+              size_hint INTEGER,
+              mime TEXT,
+              kind TEXT NOT NULL DEFAULT 'ordinary',
+              site_rule TEXT NOT NULL DEFAULT 'ask',
+              media_json TEXT NOT NULL DEFAULT '{}',
+              settings_json TEXT NOT NULL DEFAULT '{}',
+              state TEXT NOT NULL DEFAULT 'pending',
+              created_at TEXT NOT NULL,
+              expires_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_pending_confirmations_state ON pending_confirmations(state, expires_at);
             "#,
         )?;
         Ok(())
@@ -344,16 +408,41 @@ impl Store {
                 |r| r.get(0),
             )
             .optional()?;
-        if let Some(id) = existing {
-            return Ok(id);
-        }
         let now = to_rfc3339(chrono::Utc::now());
-        conn.execute(
-            "INSERT INTO categories (id, name, destination_template, extension_rules_json, created_at, updated_at)
-             VALUES ('default', 'Downloads', '%USERPROFILE%/Downloads', '[]', ?1, ?1)",
-            params![now],
-        )?;
+        if existing.is_none() {
+            conn.execute(
+                "INSERT INTO categories (id, name, destination_template, extension_rules_json, created_at, updated_at)
+                 VALUES ('default', 'Downloads', '%USERPROFILE%/Downloads', '[]', ?1, ?1)",
+                params![now],
+            )?;
+        }
+        drop(conn);
+        self.ensure_standard_categories()?;
         Ok("default".to_string())
+    }
+
+    /// Seed the six requested confirmation categories without removing any
+    /// custom categories the owner already configured.
+    pub fn ensure_standard_categories(&self) -> rusqlite::Result<()> {
+        let presets = [
+            ("videos", "Videos", "%USERPROFILE%/Downloads/Videos", r#"["mp4","mkv","webm","mov","avi","m4v"]"#),
+            ("music", "Music", "%USERPROFILE%/Downloads/Music", r#"["mp3","flac","wav","m4a","aac","ogg"]"#),
+            ("documents", "Documents", "%USERPROFILE%/Downloads/Documents", r#"["pdf","doc","docx","xls","xlsx","ppt","pptx","txt","rtf"]"#),
+            ("programs", "Programs", "%USERPROFILE%/Downloads/Programs", r#"["exe","msi","appx","msix"]"#),
+            ("compressed", "Compressed", "%USERPROFILE%/Downloads/Compressed", r#"["zip","rar","7z","tar","gz","bz2"]"#),
+            ("other", "Other", "%USERPROFILE%/Downloads/Other", "[]"),
+        ];
+        let conn = self.conn();
+        let now = to_rfc3339(chrono::Utc::now());
+        for (id, name, template, rules) in presets {
+            conn.execute(
+                "INSERT OR IGNORE INTO categories
+                    (id, name, destination_template, extension_rules_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+                params![id, name, template, rules, now],
+            )?;
+        }
+        Ok(())
     }
 
     pub fn list_categories(&self) -> rusqlite::Result<Vec<Category>> {
@@ -748,6 +837,121 @@ impl Store {
         )?;
         tx.commit()?;
         Ok(BrowserIntake::Accepted)
+    }
+
+    pub(crate) fn insert_pending_confirmation(
+        &self,
+        pending: &PendingConfirmationRow,
+    ) -> rusqlite::Result<BrowserIntake> {
+        let mut conn = self.conn();
+        let tx = conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let now = chrono::Utc::now();
+        if chrono::DateTime::parse_from_rfc3339(&pending.expires_at).is_err()
+            || chrono::DateTime::parse_from_rfc3339(&pending.expires_at)
+                .is_ok_and(|value| value.with_timezone(&chrono::Utc) <= now)
+        {
+            return Ok(BrowserIntake::Expired);
+        }
+        let replayed: bool = tx.query_row(
+            "SELECT EXISTS(SELECT 1 FROM pending_confirmations WHERE id = ?1)
+                OR EXISTS(SELECT 1 FROM event_log WHERE download_id = ?1 AND event_type = 'browser_confirmation')",
+            params![pending.id],
+            |row| row.get(0),
+        )?;
+        if replayed {
+            return Ok(BrowserIntake::Replayed);
+        }
+        tx.execute(
+            "INSERT INTO pending_confirmations
+                (id, url, page_origin, suggested_name, content_type, size_hint, mime,
+                 kind, site_rule, media_json, settings_json, state, created_at, expires_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 'pending', ?12, ?13)",
+            params![
+                pending.id, pending.url, pending.page_origin, pending.suggested_name,
+                pending.content_type, pending.size_hint, pending.mime, pending.kind,
+                pending.site_rule, pending.media_json, pending.settings_json,
+                pending.created_at, pending.expires_at,
+            ],
+        )?;
+        tx.execute(
+            "INSERT INTO event_log (download_id, event_type, created_at) VALUES (?1, 'browser_confirmation', ?2)",
+            params![pending.id, to_rfc3339(now)],
+        )?;
+        tx.commit()?;
+        Ok(BrowserIntake::Accepted)
+    }
+
+    pub(crate) fn pending_confirmation(&self, id: &str) -> rusqlite::Result<Option<PendingConfirmationRow>> {
+        let conn = self.conn();
+        let mut stmt = conn.prepare(
+            "SELECT id, url, page_origin, suggested_name, content_type, size_hint, mime,
+                    kind, site_rule, media_json, settings_json, created_at, expires_at
+             FROM pending_confirmations WHERE id = ?1 AND state = 'pending'",
+        )?;
+        let row = stmt.query_row(params![id], |r| {
+            Ok(PendingConfirmationRow {
+                id: r.get(0)?,
+                url: r.get(1)?,
+                page_origin: r.get(2)?,
+                suggested_name: r.get(3)?,
+                content_type: r.get(4)?,
+                size_hint: r.get(5)?,
+                mime: r.get(6)?,
+                kind: r.get(7)?,
+                site_rule: r.get(8)?,
+                media_json: r.get(9)?,
+                settings_json: r.get(10)?,
+                created_at: r.get(11)?,
+                expires_at: r.get(12)?,
+            })
+        });
+        match row {
+            Ok(row) => Ok(Some(row)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// List pending confirmations and mark expired rows so the UI does not keep
+    /// showing them after a restart.
+    pub fn list_pending_confirmations(&self) -> rusqlite::Result<Vec<crate::domain::PendingConfirmation>> {
+        let now = to_rfc3339(chrono::Utc::now());
+        let conn = self.conn();
+        conn.execute(
+            "UPDATE pending_confirmations SET state = 'expired' WHERE state = 'pending' AND expires_at <= ?1",
+            params![now],
+        )?;
+        let mut stmt = conn.prepare(
+            "SELECT id, url, page_origin, suggested_name, content_type, size_hint, mime,
+                    kind, site_rule, created_at, expires_at
+             FROM pending_confirmations WHERE state = 'pending' ORDER BY created_at ASC",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok(crate::domain::PendingConfirmation {
+                id: r.get(0)?,
+                url: r.get(1)?,
+                page_origin: r.get(2)?,
+                suggested_name: r.get(3)?,
+                content_type: r.get(4)?,
+                size_hint: r.get(5)?,
+                mime: r.get(6)?,
+                kind: r.get(7)?,
+                site_rule: r.get(8)?,
+                created_at: r.get(9)?,
+                expires_at: r.get(10)?,
+            })
+        })?;
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
+    }
+
+    pub(crate) fn resolve_pending_confirmation(&self, id: &str, accepted: bool) -> rusqlite::Result<()> {
+        let state = if accepted { "accepted" } else { "cancelled" };
+        let conn = self.conn();
+        conn.execute(
+            "UPDATE pending_confirmations SET state = ?2 WHERE id = ?1 AND state = 'pending'",
+            params![id, state],
+        )?;
+        Ok(())
     }
 
     /// Read the persisted opt-in from the settings table. The database is the

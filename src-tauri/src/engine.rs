@@ -1836,6 +1836,12 @@ impl Engine {
 
     // -------------------------------------------------------------- probe
 
+    /// Bounded metadata probe used by the browser confirmation UI. It never
+    /// starts a transfer and uses the same URL policy as the download engine.
+    pub async fn probe_metadata(&self, url: &str) -> Result<ResourceMetadata, EngineError> {
+        self.probe(url, &[]).await
+    }
+
     async fn probe(
         &self,
         url: &str,

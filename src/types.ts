@@ -241,6 +241,32 @@ export interface DiskSpace {
   total_bytes: number;
 }
 
+export interface PendingConfirmation {
+  id: string;
+  url: string;
+  page_origin: string;
+  suggested_name: string | null;
+  content_type: string;
+  size_hint: number | null;
+  mime: string | null;
+  kind: string;
+  site_rule: string;
+  created_at: string;
+  expires_at: string;
+}
+
+export interface MediaVariantDto {
+  url: string;
+  label: string;
+  mime: string | null;
+}
+
+export interface MetadataProbe {
+  size: number | null;
+  content_type: string | null;
+  suggested_name: string | null;
+}
+
 export interface CoreEvents {
   download_status: DownloadStatusEvent;
   download_progress: DownloadProgressEvent;

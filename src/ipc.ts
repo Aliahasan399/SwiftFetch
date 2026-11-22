@@ -3,7 +3,8 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { redactSensitiveText } from "./format";
 import type {
   AddDownloadRequest, CategoryDto, CommandResult, ControlRequest, ControlResult,
-  CoreEvents, Diagnostics, DiskSpace, DownloadProjection, ErrorEnvelope, PowerRequest, QueueDto,
+  CoreEvents, Diagnostics, DiskSpace, DownloadProjection, ErrorEnvelope, MetadataProbe,
+  MediaVariantDto, PendingConfirmation, PowerRequest, QueueDto,
   RecoveryState, RestoreResult, ScheduleDto, SegmentRow, Settings, TaskListResponse, UpdateState,
 } from "./types";
 
@@ -68,6 +69,16 @@ interface Commands {
   restart_application: { request: Record<string, never>; response: null };
   get_disk_space: { request: { path?: string }; response: DiskSpace | null };
   encrypt_saved_secrets: { request: { confirm: boolean }; response: { enabled: boolean; rows_rewritten: number } };
+  list_pending_confirmations: { request: Record<string, never>; response: PendingConfirmation[] };
+  resolve_browser_confirmation: {
+    request: {
+      id: string; action: string; url?: string; suggested_name?: string;
+      destination_directory?: string; category_id?: string; queue_id?: string;
+    };
+    response: null;
+  };
+  probe_download_metadata: { request: { url: string }; response: MetadataProbe };
+  inspect_media_manifest: { request: { url: string }; response: MediaVariantDto[] };
 }
 
 /**
@@ -137,6 +148,11 @@ export const api = {
   restartApplication: () => command("restart_application", {}),
   getDiskSpace: (path?: string) => command("get_disk_space", path === undefined ? {} : { path }),
   encryptSavedSecrets: () => command("encrypt_saved_secrets", { confirm: true }),
+  listPendingConfirmations: () => command("list_pending_confirmations", {}),
+  resolveBrowserConfirmation: (request: Commands["resolve_browser_confirmation"]["request"]) =>
+    command("resolve_browser_confirmation", { req: request }),
+  probeDownloadMetadata: (url: string) => command("probe_download_metadata", { req: { url } }),
+  inspectMediaManifest: (url: string) => command("inspect_media_manifest", { req: { url } }),
 };
 
 export function listenCore<K extends keyof CoreEvents>(name: K, handler: (payload: CoreEvents[K]) => void): Promise<UnlistenFn> {

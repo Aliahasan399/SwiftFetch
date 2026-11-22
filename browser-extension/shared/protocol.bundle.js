@@ -41,7 +41,18 @@
  * ------------------------------------------------------------------ */
 
 const PROTOCOL_VERSION = 1;
+const PROTOCOL_V2 = 2;
 const MESSAGE_TYPE = 'download_intent';
+
+/**
+ * Protocol v2 adds one optional `metadata` object. It never carries cookies,
+ * headers or credentials: only bounded hints used by the confirmation UI.
+ */
+const METADATA_KINDS = Object.freeze(['ordinary', 'media']);
+const METADATA_SITE_RULES = Object.freeze(['ask', 'allow', 'deny']);
+const MAX_METADATA_LABEL = 128;
+const MAX_MEDIA_VARIANTS = 32;
+const MAX_SIZE_HINT = 100 * 1024 * 1024 * 1024; // 100 GiB, informational only
 
 const MAX_URL_LENGTH = 2048;
 const MAX_NAME_LENGTH = 200;
@@ -65,6 +76,7 @@ const INTENT_FIELDS = Object.freeze([
   'cookies',
   'expires_at',
 ]);
+const INTENT_FIELDS_V2 = Object.freeze([...INTENT_FIELDS, 'metadata']);
 
 /** Fields that must never appear on the wire. */
 const SENSITIVE_FIELDS = Object.freeze([
@@ -412,6 +424,84 @@ function createReplayGuard(windowMs) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Protocol v2 metadata (hints only, never credentials)
+ * ------------------------------------------------------------------ */
+
+/** Validate the bounded, non-sensitive v2 metadata object. */
+function validateMetadata(raw) {
+  if (raw === undefined || raw === null) return succeed(null);
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+    return fail('invalid_metadata', 'metadata must be an object');
+  }
+  // Cross-realm messages (browser extension messaging) carry a different
+  // Object.prototype, so use a realm-safe tag check instead of identity.
+  if (Object.prototype.toString.call(raw) !== '[object Object]') {
+    return fail('invalid_metadata', 'metadata must be a plain object');
+  }
+  for (const key of Object.keys(raw)) {
+    if (!['size_hint', 'mime', 'kind', 'auto_accept', 'site_rule', 'media'].includes(key)) {
+      return fail('invalid_metadata', `metadata field "${key}" is not allowed`);
+    }
+  }
+  if (raw.size_hint !== undefined && raw.size_hint !== null) {
+    if (typeof raw.size_hint !== 'number' || !Number.isFinite(raw.size_hint) || raw.size_hint < 0 || raw.size_hint > MAX_SIZE_HINT) {
+      return fail('invalid_metadata', 'size_hint is out of range');
+    }
+  }
+  if (raw.mime !== undefined && raw.mime !== null) {
+    const mime = normalizeContentType(raw.mime);
+    if (!mime.ok) return mime;
+  }
+  if (raw.kind !== undefined && raw.kind !== null && !METADATA_KINDS.includes(raw.kind)) {
+    return fail('invalid_metadata', 'metadata.kind is not supported');
+  }
+  if (raw.auto_accept !== undefined && raw.auto_accept !== null && typeof raw.auto_accept !== 'boolean') {
+    return fail('invalid_metadata', 'auto_accept must be a boolean');
+  }
+  if (raw.site_rule !== undefined && raw.site_rule !== null && !METADATA_SITE_RULES.includes(raw.site_rule)) {
+    return fail('invalid_metadata', 'site_rule is not supported');
+  }
+  if (raw.media !== undefined && raw.media !== null) {
+    const media = raw.media;
+    if (typeof media !== 'object' || Array.isArray(media)) {
+      return fail('invalid_metadata', 'media must be an object');
+    }
+    const url = validateUrl(media.url);
+    if (!url.ok) return url;
+    if (media.mime !== undefined && media.mime !== null) {
+      const mime = normalizeContentType(media.mime);
+      if (!mime.ok) return mime;
+    }
+    if (media.label !== undefined && media.label !== null) {
+      if (typeof media.label !== 'string' || media.label.length > MAX_METADATA_LABEL || CONTROL_CHAR_RE.test(media.label)) {
+        return fail('invalid_metadata', 'media.label is invalid');
+      }
+    }
+    for (const dim of ['width', 'height']) {
+      if (media[dim] !== undefined && media[dim] !== null) {
+        const value = media[dim];
+        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > 10000) {
+          return fail('invalid_metadata', `media.${dim} is out of range`);
+        }
+      }
+    }
+    if (media.variants !== undefined && media.variants !== null) {
+      if (!Array.isArray(media.variants) || media.variants.length > MAX_MEDIA_VARIANTS) {
+        return fail('invalid_metadata', 'too many media variants');
+      }
+      for (const variant of media.variants) {
+        const variantUrl = validateUrl(variant && variant.url);
+        if (!variantUrl.ok) return variantUrl;
+        if (variant.label !== undefined && (typeof variant.label !== 'string' || variant.label.length > MAX_METADATA_LABEL)) {
+          return fail('invalid_metadata', 'variant label is invalid');
+        }
+      }
+    }
+  }
+  return succeed(raw);
+}
+
+/* ------------------------------------------------------------------ *
  * Intent validation
  * ------------------------------------------------------------------ */
 
@@ -440,8 +530,9 @@ function assertNoSecrets(payload) {
 }
 
 function hasUnexpectedFields(payload) {
+  const allowed = payload.protocol === PROTOCOL_V2 ? INTENT_FIELDS_V2 : INTENT_FIELDS;
   for (const key of Object.keys(payload)) {
-    if (!INTENT_FIELDS.includes(key)) return key;
+    if (!allowed.includes(key)) return key;
   }
   return null;
 }
@@ -473,8 +564,8 @@ function validateIntent(raw, ctx) {
     );
   }
 
-  if (raw.protocol !== PROTOCOL_VERSION) {
-    return fail('invalid_protocol', `protocol must be ${PROTOCOL_VERSION}`);
+  if (raw.protocol !== PROTOCOL_VERSION && raw.protocol !== PROTOCOL_V2) {
+    return fail('invalid_protocol', `protocol must be ${PROTOCOL_VERSION} or ${PROTOCOL_V2}`);
   }
   if (raw.type !== MESSAGE_TYPE) {
     return fail('invalid_type', `type must be "${MESSAGE_TYPE}"`);
@@ -546,8 +637,15 @@ function validateIntent(raw, ctx) {
     }
   }
 
-  return succeed({
-    protocol: PROTOCOL_VERSION,
+  let metadata = null;
+  if (raw.protocol === PROTOCOL_V2) {
+    const checked = validateMetadata(raw.metadata);
+    if (!checked.ok) return checked;
+    metadata = checked.value;
+  }
+
+  const canonical = {
+    protocol: raw.protocol,
     type: MESSAGE_TYPE,
     request_id: raw.request_id,
     url: raw.url,
@@ -557,7 +655,9 @@ function validateIntent(raw, ctx) {
     user_initiated: true,
     cookies: context.allowCookies === true ? raw.cookies.slice(0, MAX_COOKIES) : [],
     expires_at: new Date(expiresMs).toISOString(),
-  });
+  };
+  if (metadata !== null) canonical.metadata = metadata;
+  return succeed(canonical);
 }
 
 /**
@@ -572,8 +672,9 @@ function buildIntent(input, ctx) {
       ? Math.min(input.ttlMs, MAX_TTL_MS)
       : DEFAULT_TTL_MS;
 
+  const useV2 = context.protocolV2 === true || (input.metadata !== undefined && input.metadata !== null);
   const raw = {
-    protocol: PROTOCOL_VERSION,
+    protocol: useV2 ? PROTOCOL_V2 : PROTOCOL_VERSION,
     type: MESSAGE_TYPE,
     request_id: input.requestId || newRequestId(),
     url: input.url,
@@ -587,6 +688,7 @@ function buildIntent(input, ctx) {
     cookies: Array.isArray(input.cookies) ? input.cookies : [],
     expires_at: new Date(now + requestedTtl).toISOString(),
   };
+  if (useV2) raw.metadata = input.metadata || {};
   return validateIntent(raw, context);
 }
 
@@ -627,6 +729,7 @@ function redactForLog(intent) {
 
 const api = {
   PROTOCOL_VERSION,
+  PROTOCOL_V2,
   MESSAGE_TYPE,
   MAX_URL_LENGTH,
   MAX_NAME_LENGTH,
@@ -637,6 +740,7 @@ const api = {
   MAX_COOKIES,
   ALLOWED_SCHEMES,
   INTENT_FIELDS,
+  INTENT_FIELDS_V2,
   SENSITIVE_FIELDS,
   UUID_V4_RE,
   ISO_8601_RE,
@@ -656,6 +760,7 @@ const api = {
   isTooFarAheadIntent,
   createReplayGuard,
   assertNoSecrets,
+  validateMetadata,
   validateIntent,
   buildIntent,
   redactForLog,

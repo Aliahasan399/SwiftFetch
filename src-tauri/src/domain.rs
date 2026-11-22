@@ -299,6 +299,54 @@ pub struct DownloadProjection {
     pub completed_segments: u32,
 }
 
+/// A browser-originated download waiting for explicit user confirmation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PendingConfirmation {
+    pub id: String,
+    pub url: String,
+    pub page_origin: String,
+    pub suggested_name: Option<String>,
+    pub content_type: String,
+    pub size_hint: Option<u64>,
+    pub mime: Option<String>,
+    pub kind: String,
+    pub site_rule: String,
+    pub created_at: String,
+    pub expires_at: String,
+}
+
+/// Resolution of a pending confirmation from the desktop UI.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ResolveConfirmationRequest {
+    pub id: String,
+    /// `start`, `queue` or `cancel`.
+    pub action: String,
+    /// Optional validated variant URL selected from a media manifest.
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub suggested_name: Option<String>,
+    #[serde(default)]
+    pub destination_directory: Option<String>,
+    #[serde(default)]
+    pub category_id: Option<String>,
+    #[serde(default)]
+    pub queue_id: Option<String>,
+}
+
+/// Bounded metadata probe for the confirmation UI.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProbeRequest {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MetadataProbe {
+    pub size: Option<u64>,
+    pub content_type: Option<String>,
+    pub suggested_name: Option<String>,
+}
+
 /// Payload for the `add_download` command.
 #[derive(Debug, Clone, Deserialize)]
 pub struct AddDownloadRequest {

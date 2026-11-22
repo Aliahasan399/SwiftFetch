@@ -39,7 +39,8 @@ try {
     Invoke-Check 'Rust tests' cargo @('test', '--locked', '--manifest-path', 'src-tauri/Cargo.toml')
     Invoke-Check 'Desktop UI build' npm.cmd @('run', 'build', '--', '--emptyOutDir', 'false')
     Invoke-Check 'Desktop UI regressions' node @('src/testing/verify.mjs')
-    Invoke-Check 'Browser protocol and package tests' node @('--test', 'browser-extension/test/test_protocol.js', 'browser-extension/test/test_release.js')
+    Invoke-Check 'Browser protocol, media and package tests' node @('--test', 'browser-extension/test/test_protocol.js', 'browser-extension/test/test_media.js', 'browser-extension/test/test_release.js')
+    Invoke-Check 'Generated extension bundles are current' node @('browser-extension/tools/make-protocol-bundle.mjs', '--check')
     Invoke-Check 'Firefox background behavior tests' node @('--test', 'browser-extension/test/test_firefox_background.test.mjs')
     Write-Host "`nAll verification steps passed."
     Write-VerifyReport -Success $true

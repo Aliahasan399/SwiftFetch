@@ -16,6 +16,9 @@ use crate::store::Store;
 const FIREFOX_ID: &str = "swiftfetch@localhost";
 const MAX_FRAME: usize = 16 * 1024;
 const MAX_URL: usize = 2_048;
+const MAX_METADATA_LABEL: usize = 128;
+const MAX_MEDIA_VARIANTS: usize = 32;
+const MAX_SIZE_HINT: u64 = 100 * 1024 * 1024 * 1024;
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -31,6 +34,53 @@ struct Intent {
     user_initiated: bool,
     cookies: Vec<serde_json::Value>,
     expires_at: DateTime<Utc>,
+    #[serde(default)]
+    metadata: Option<IntentMetadata>,
+}
+
+/// Protocol v2 hints. These are strictly non-sensitive: no cookies, headers or
+/// credentials can be represented here.
+#[derive(Debug, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+struct IntentMetadata {
+    #[serde(default)]
+    size_hint: Option<u64>,
+    #[serde(default)]
+    mime: Option<String>,
+    #[serde(default)]
+    kind: Option<String>,
+    #[serde(default)]
+    auto_accept: Option<bool>,
+    #[serde(default)]
+    site_rule: Option<String>,
+    #[serde(default)]
+    media: Option<MediaMetadata>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(deny_unknown_fields)]
+struct MediaMetadata {
+    url: String,
+    #[serde(default)]
+    mime: Option<String>,
+    #[serde(default)]
+    label: Option<String>,
+    #[serde(default)]
+    width: Option<u32>,
+    #[serde(default)]
+    height: Option<u32>,
+    #[serde(default)]
+    variants: Vec<MediaVariant>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(deny_unknown_fields)]
+struct MediaVariant {
+    url: String,
+    #[serde(default)]
+    label: Option<String>,
+    #[serde(default)]
+    mime: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -103,8 +153,66 @@ fn mime_type(value: &str) -> bool {
     value.split_once('/').is_some_and(|(kind, subtype)| token(kind) && token(subtype))
 }
 
+fn valid_metadata_label(value: &Option<String>) -> bool {
+    value.as_ref().is_none_or(|label| {
+        !label.is_empty()
+            && label.chars().count() <= MAX_METADATA_LABEL
+            && !label.chars().any(|ch| ch.is_control())
+    })
+}
+
+fn validate_metadata(metadata: &Option<IntentMetadata>) -> Result<(), Reply> {
+    let Some(metadata) = metadata else { return Ok(()) };
+    if metadata.size_hint.is_some_and(|size| size > MAX_SIZE_HINT) {
+        return Err(Reply::invalid_intent());
+    }
+    if metadata.mime.as_deref().is_some_and(|mime| !mime_type(mime)) {
+        return Err(Reply::invalid_intent());
+    }
+    if metadata.kind.as_deref().is_some_and(|kind| !matches!(kind, "ordinary" | "media")) {
+        return Err(Reply::invalid_intent());
+    }
+    if metadata.site_rule.as_deref().is_some_and(|rule| !matches!(rule, "ask" | "allow" | "deny")) {
+        return Err(Reply::invalid_intent());
+    }
+    if !valid_metadata_label(&metadata.mime) && metadata.mime.is_some() {
+        return Err(Reply::invalid_intent());
+    }
+    if let Some(media) = &metadata.media {
+        if http_url(&media.url).is_none() || !valid_metadata_label(&media.label) {
+            return Err(Reply::invalid_intent());
+        }
+        if media.mime.as_deref().is_some_and(|mime| !mime_type(mime)) {
+            return Err(Reply::invalid_intent());
+        }
+        if media.width.is_some_and(|w| w > 10_000) || media.height.is_some_and(|h| h > 10_000) {
+            return Err(Reply::invalid_intent());
+        }
+        if media.variants.len() > MAX_MEDIA_VARIANTS {
+            return Err(Reply::invalid_intent());
+        }
+        for variant in &media.variants {
+            if http_url(&variant.url).is_none() || !valid_metadata_label(&variant.label) {
+                return Err(Reply::invalid_intent());
+            }
+            if variant.mime.as_deref().is_some_and(|mime| !mime_type(mime)) {
+                return Err(Reply::invalid_intent());
+            }
+        }
+    }
+    Ok(())
+}
+
 fn validate(intent: Intent, now: DateTime<Utc>) -> Result<(String, AddDownloadRequest, DateTime<Utc>), Reply> {
-    if intent.protocol != 1 || intent.kind != "download_intent" || !intent.user_initiated || !intent.cookies.is_empty() {
+    if !matches!(intent.protocol, 1 | 2)
+        || intent.kind != "download_intent"
+        || !intent.user_initiated
+        || !intent.cookies.is_empty()
+    {
+        return Err(Reply::invalid_intent());
+    }
+    validate_metadata(&intent.metadata)?;
+    if intent.protocol == 1 && intent.metadata.is_some() {
         return Err(Reply::invalid_intent());
     }
     if intent.expires_at <= now || intent.expires_at > now + TimeDelta::minutes(5) {
@@ -145,14 +253,65 @@ fn validate(intent: Intent, now: DateTime<Utc>) -> Result<(String, AddDownloadRe
 }
 
 fn handle(input: impl Read, database: &Path) -> Reply {
-    let (id, request, expires_at) = match read_intent(input).and_then(|intent| validate(intent, Utc::now())) {
+    let intent = match read_intent(input) {
+        Ok(intent) => intent,
+        Err(reply) => return reply,
+    };
+    let page_origin = intent.page_origin.clone();
+    let content_type = intent.content_type.clone();
+    let metadata = intent.metadata.clone();
+    let (id, request, expires_at) = match validate(intent, Utc::now()) {
         Ok(validated) => validated,
         Err(reply) => return reply,
     };
     let Ok(store) = Store::open_existing(database) else {
         return Reply::reject("app_unavailable", "Open SwiftFetch and enable browser integration before sending downloads.");
     };
-    match crate::commands::queue_browser_download(&store, request, &id, expires_at) {
+    let _ = store.ensure_pending_schema();
+
+    let site_rule = metadata
+        .as_ref()
+        .and_then(|value| value.site_rule.as_deref())
+        .unwrap_or("ask")
+        .to_string();
+    let auto_accept = metadata
+        .as_ref()
+        .and_then(|value| value.auto_accept)
+        .unwrap_or(false);
+
+    if site_rule == "deny" {
+        return Reply::reject("site_blocked", "This site is blocked in the SwiftFetch popup.");
+    }
+
+    if auto_accept && site_rule == "allow" {
+        return match crate::commands::queue_browser_download(&store, request, &id, expires_at) {
+            Ok(()) => Reply::Accepted { ok: true, value: Receipt { task_id: id } },
+            Err((code, message)) => Reply::reject(code, message),
+        };
+    }
+
+    let size_hint = metadata.as_ref().and_then(|value| value.size_hint);
+    let mime = metadata.as_ref().and_then(|value| value.mime.clone());
+    let kind = metadata
+        .as_ref()
+        .and_then(|value| value.kind.clone())
+        .unwrap_or_else(|| "ordinary".to_string());
+    let media_json = serde_json::to_string(&metadata.as_ref().and_then(|value| value.media.clone()))
+        .unwrap_or_else(|_| "null".to_string());
+    let confirmation = crate::commands::BrowserConfirmationInput {
+        id: id.clone(),
+        url: request.url.clone(),
+        page_origin,
+        suggested_name: request.suggested_name.clone(),
+        content_type,
+        size_hint,
+        mime,
+        kind,
+        site_rule,
+        media_json,
+        expires_at,
+    };
+    match crate::commands::prepare_browser_confirmation(&store, confirmation) {
         Ok(()) => Reply::Accepted { ok: true, value: Receipt { task_id: id } },
         Err((code, message)) => Reply::reject(code, message),
     }
@@ -264,5 +423,135 @@ mod tests {
             crate::commands::queue_browser_download(&store, request(), &new_id, expires_at),
             Err(("replayed_intent", _))
         ));
+    }
+
+    fn framed(value: serde_json::Value) -> Vec<u8> {
+        let body = serde_json::to_vec(&value).unwrap();
+        let mut bytes = (body.len() as u32).to_le_bytes().to_vec();
+        bytes.extend(body);
+        bytes
+    }
+
+    #[test]
+    fn v2_intent_with_ask_rule_creates_pending_confirmation() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("state.sqlite");
+        let store = Store::open(&path).unwrap();
+        store.ensure_default_queue().unwrap();
+        store.ensure_default_category().unwrap();
+        let settings = crate::settings::Settings {
+            browser_integration: true,
+            ..Default::default()
+        };
+        store.set_setting("app_settings", &settings.to_json()).unwrap();
+        drop(store);
+
+        let intent = json!({
+            "protocol": 2,
+            "type": "download_intent",
+            "request_id": Uuid::new_v4().to_string(),
+            "url": "https://example.com/video.mp4",
+            "suggested_name": "video.mp4",
+            "page_origin": "https://example.com",
+            "content_type": "video/mp4",
+            "user_initiated": true,
+            "cookies": [],
+            "expires_at": (Utc::now() + TimeDelta::minutes(2)).to_rfc3339(),
+            "metadata": {
+                "kind": "media",
+                "site_rule": "ask",
+                "size_hint": 4096,
+                "mime": "video/mp4",
+                "media": { "url": "https://example.com/video.mp4", "label": "Original" }
+            }
+        });
+        let reply = handle(framed(intent).as_slice(), &path);
+        assert!(matches!(reply, Reply::Accepted { .. }));
+
+        let store = Store::open_existing(&path).unwrap();
+        let pending = store.list_pending_confirmations().unwrap();
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].url, "https://example.com/video.mp4");
+        assert_eq!(pending[0].size_hint, Some(4096));
+        assert_eq!(store.count_tasks().unwrap(), 0);
+    }
+
+    #[test]
+    fn pending_confirmation_resolution_controls_task_creation() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("state.sqlite");
+        let store = Store::open(&path).unwrap();
+        store.ensure_default_queue().unwrap();
+        store.ensure_default_category().unwrap();
+        let settings = crate::settings::Settings {
+            browser_integration: true,
+            ..Default::default()
+        };
+        let raw = settings.to_json();
+        store.set_setting("app_settings", &raw).unwrap();
+
+        let make = |id: String| crate::store::PendingConfirmationRow {
+            id,
+            url: "https://example.com/file.bin".to_string(),
+            page_origin: "https://example.com".to_string(),
+            suggested_name: Some("file.bin".to_string()),
+            content_type: "application/octet-stream".to_string(),
+            size_hint: Some(128),
+            mime: None,
+            kind: "ordinary".to_string(),
+            site_rule: "ask".to_string(),
+            media_json: "null".to_string(),
+            settings_json: raw.clone(),
+            created_at: Utc::now().to_rfc3339(),
+            expires_at: (Utc::now() + TimeDelta::minutes(3)).to_rfc3339(),
+        };
+
+        let cancelled = Uuid::new_v4().to_string();
+        store.insert_pending_confirmation(&make(cancelled.clone())).unwrap();
+        assert_eq!(store.list_pending_confirmations().unwrap().len(), 1);
+        store.resolve_pending_confirmation(&cancelled, false).unwrap();
+        assert_eq!(store.list_pending_confirmations().unwrap().len(), 0);
+        assert_eq!(store.count_tasks().unwrap(), 0);
+
+        let accepted = Uuid::new_v4().to_string();
+        store.insert_pending_confirmation(&make(accepted.clone())).unwrap();
+        let pending = store.pending_confirmation(&accepted).unwrap().unwrap();
+        store.resolve_pending_confirmation(&accepted, true).unwrap();
+        let request = AddDownloadRequest {
+            url: pending.url,
+            suggested_name: pending.suggested_name,
+            destination_directory: None,
+            queue_id: None,
+            category_id: None,
+            priority: None,
+            start_policy: Some("manual".to_string()),
+            headers: Vec::new(),
+            checksum: None,
+            connections: None,
+            speed_limit: None,
+        };
+        let expiry = Utc::now() + TimeDelta::minutes(2);
+        crate::commands::queue_browser_download(&store, request, &accepted, expiry).unwrap();
+        assert_eq!(store.count_tasks().unwrap(), 1);
+        assert_eq!(store.list_pending_confirmations().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn v2_metadata_cannot_carry_headers() {
+        let intent = json!({
+            "protocol": 2,
+            "type": "download_intent",
+            "request_id": Uuid::new_v4().to_string(),
+            "url": "https://example.com/file.zip",
+            "suggested_name": "file.zip",
+            "page_origin": "https://example.com",
+            "content_type": "application/zip",
+            "user_initiated": true,
+            "cookies": [],
+            "expires_at": (Utc::now() + TimeDelta::minutes(2)).to_rfc3339(),
+            "metadata": { "headers": [{ "name": "Cookie", "value": "secret" }] }
+        });
+        let reply = handle(framed(intent).as_slice(), Path::new("missing.sqlite"));
+        assert!(matches!(reply, Reply::Rejected { .. }));
     }
 }

@@ -28,7 +28,7 @@ test('packaged manifests and imports resolve entirely inside their own directory
     const root = path.join(packaged, browser);
     const manifest = JSON.parse(await readFile(path.join(root, 'manifest.json'), 'utf8'));
     const permission = [...manifest.permissions].sort();
-    assert.deepEqual(permission, ['contextMenus', 'nativeMessaging', 'storage', 'tabs']);
+    assert.deepEqual(permission, ['contextMenus', 'downloads', 'nativeMessaging', 'storage', 'tabs']);
     const action = manifest.action || manifest.browser_action;
     const references = [
       ...(manifest.background.scripts || [manifest.background.service_worker]),

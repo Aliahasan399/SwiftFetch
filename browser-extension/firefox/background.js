@@ -166,6 +166,7 @@
         userInitiated: true,
         cookies: [],
         ttlMs: payload.ttlMs,
+        metadata: payload.metadata,
       },
       { now: Date.now(), allowCookies: false, replayGuard: state.replayGuard }
     );
@@ -203,6 +204,20 @@
 
   function handleMessage(message, _sender, sendResponse) {
     if (!message || typeof message !== 'object') return undefined;
+
+    if (message.type === 'swiftfetch_media_selection') {
+      handleDownloadIntent(message.payload || {}, 'media_panel')
+        .then(sendResponse)
+        .catch(() =>
+          sendResponse({
+            ok: false,
+            code: 'internal_error',
+            message: 'SwiftFetch could not process this media selection.',
+            retryable: true,
+          })
+        );
+      return true;
+    }
 
     if (message.type === 'swiftfetch_intent') {
       handleDownloadIntent(message.payload || {}, message.source || 'content_script')
@@ -271,10 +286,61 @@
     return undefined;
   }
 
+  function safeOriginFromUrl(value) {
+    try { return new URL(value).origin; } catch (error) { return ''; }
+  }
+
+  async function cancelBrowserDownload(id) {
+    try { await callApi(chrome.downloads.cancel, id); } catch (error) { /* already completed */ }
+  }
+
+  async function handleBrowserDownload(item) {
+    if (!item || typeof item.url !== 'string' || !item.url) return;
+    const protocol = await loadProtocol();
+    if (!protocol) return;
+    const settings = await readSettings();
+    if (settings.enabled === false) return;
+    const page = typeof item.referrer === 'string' && item.referrer ? item.referrer : item.url;
+    const origin = safeOriginFromUrl(page) || safeOriginFromUrl(item.url);
+    const rule = siteRuleFor(settings, origin);
+    if (rule === 'deny') { await cancelBrowserDownload(item.id); return; }
+    const sizeHint =
+      typeof item.totalBytes === 'number' && Number.isFinite(item.totalBytes) && item.totalBytes >= 0
+        ? item.totalBytes
+        : undefined;
+    const built = protocol.buildIntent(
+      {
+        url: item.url,
+        suggestedName: item.filename || '',
+        pageOrigin: origin,
+        contentType: item.mime || 'application/octet-stream',
+        userInitiated: true,
+        cookies: [],
+        metadata: {
+          kind: 'ordinary',
+          site_rule: rule,
+          auto_accept: rule === 'allow',
+          ...(sizeHint === undefined ? {} : { size_hint: sizeHint }),
+          ...(item.mime ? { mime: item.mime } : {}),
+        },
+      },
+      { now: Date.now(), allowCookies: false, replayGuard: state.replayGuard }
+    );
+    if (!built.ok) return;
+    const result = await forwardToNativeHost(built.value);
+    if (result.ok) await cancelBrowserDownload(item.id);
+  }
+
+  function installDownloadInterceptor() {
+    if (!chrome.downloads || !chrome.downloads.onCreated || typeof chrome.downloads.cancel !== 'function') return;
+    chrome.downloads.onCreated.addListener((item) => { void handleBrowserDownload(item); });
+  }
+
   async function bootstrap() {
     const protocol = await loadProtocol();
     if (protocol) state.replayGuard = protocol.createReplayGuard();
     await installMenus();
+    installDownloadInterceptor();
     chrome.contextMenus.onClicked.addListener((info, tab) => {
       const url = info.linkUrl || info.srcUrl;
       if (!url) return;

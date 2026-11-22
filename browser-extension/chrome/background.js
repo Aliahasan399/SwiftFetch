@@ -122,6 +122,7 @@ async function handleDownloadIntent(payload, source) {
       userInitiated: true,
       cookies: [],
       ttlMs: payload.ttlMs,
+      metadata: payload.metadata,
     },
     { now: Date.now(), allowCookies: false, replayGuard }
   );
@@ -196,11 +197,78 @@ function safeOriginFromTab(tabUrl) {
 }
 
 /* ------------------------------------------------------------------ *
+ * Ordinary browser download interception (Manifest V3)
+ * ------------------------------------------------------------------ */
+
+function safeOriginFromUrl(value) {
+  try { return new URL(value).origin; } catch (error) { return ''; }
+}
+
+async function cancelBrowserDownload(id) {
+  try { await chrome.downloads.cancel(id); } catch (error) { /* already completed */ }
+}
+
+/**
+ * Hand an ordinary browser download to SwiftFetch. We only cancel the browser
+ * download after the native host accepted the intent, so a bridge failure never
+ * loses the user's download.
+ */
+async function handleBrowserDownload(item) {
+  if (!item || typeof item.url !== 'string' || !item.url) return;
+  const settings = await readSettings();
+  if (settings.enabled === false) return;
+
+  const page = typeof item.referrer === 'string' && item.referrer ? item.referrer : item.url;
+  const origin = safeOriginFromUrl(page) || safeOriginFromUrl(item.url);
+  const rule = siteRuleFor(settings, origin);
+  if (rule === 'deny') { await cancelBrowserDownload(item.id); return; }
+
+  const sizeHint =
+    typeof item.totalBytes === 'number' && Number.isFinite(item.totalBytes) && item.totalBytes >= 0
+      ? item.totalBytes
+      : undefined;
+  const built = buildIntent(
+    {
+      url: item.url,
+      suggestedName: item.filename || '',
+      pageOrigin: origin,
+      contentType: item.mime || 'application/octet-stream',
+      userInitiated: true,
+      cookies: [],
+      metadata: {
+        kind: 'ordinary',
+        site_rule: rule,
+        auto_accept: rule === 'allow',
+        ...(sizeHint === undefined ? {} : { size_hint: sizeHint }),
+        ...(item.mime ? { mime: item.mime } : {}),
+      },
+    },
+    { now: Date.now(), allowCookies: false, replayGuard }
+  );
+  if (!built.ok) return;
+
+  const result = await forwardToNativeHost(built.value);
+  if (result.ok) await cancelBrowserDownload(item.id);
+}
+
+function installDownloadInterceptor() {
+  if (!chrome.downloads || !chrome.downloads.onCreated || typeof chrome.downloads.cancel !== 'function') return;
+  chrome.downloads.onCreated.addListener((item) => { void handleBrowserDownload(item); });
+}
+
+/* ------------------------------------------------------------------ *
  * Message bus (content script + popup)
  * ------------------------------------------------------------------ */
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (!message || typeof message !== 'object') return undefined;
+
+  if (message.type === 'swiftfetch_media_selection') {
+    handleDownloadIntent(message.payload || {}, 'media_panel')
+      .then(sendResponse)
+      .catch(() => sendResponse({ ok: false, code: 'internal_error', message: 'SwiftFetch could not process this media selection.', retryable: true }));
+    return true;
+  }
 
   if (message.type === 'swiftfetch_intent') {
     handleDownloadIntent(message.payload || {}, message.source || 'content_script')
@@ -287,11 +355,13 @@ async function refreshBadge() {
 chrome.runtime.onStartup.addListener(() => {
   installMenus();
   refreshBadge();
+  installDownloadInterceptor();
 });
 
 chrome.runtime.onInstalled.addListener((details) => {
   installMenus();
   refreshBadge();
+  installDownloadInterceptor();
   if (details.reason === 'install') {
     chrome.storage.local.set({ [STORAGE_KEY]: { enabled: true, siteRules: {} } }).catch(() => {});
   }
@@ -302,3 +372,4 @@ void MAX_COOKIES;
 
 installMenus();
 refreshBadge();
+installDownloadInterceptor();

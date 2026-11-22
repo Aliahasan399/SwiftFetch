@@ -101,4 +101,83 @@
   document.addEventListener('click', handleGesture, true);
   document.addEventListener('auxclick', handleGesture, true);
 
+  /* ---------------------------------------------------------------- *
+   * Bounded accessible-media detection (Phase 2–4)
+   * Detection alone never sends a download. Only a real click on the
+   * SwiftFetch indicator opens the panel, and only a panel button creates
+   * a confirmation request.
+   * ---------------------------------------------------------------- */
+  async function startMediaDetection() {
+    const detect = globalThis.SwiftFetchMediaDetect;
+    const indicator = globalThis.SwiftFetchMediaIndicator;
+    if (!detect || !indicator) return;
+    let settings = null;
+    try {
+      const stored = await chrome.storage.local.get('swiftfetch_settings');
+      settings = stored && stored.swiftfetch_settings;
+    } catch (error) {
+      return;
+    }
+    if (settings && settings.enabled === false) return;
+    const origin = currentOrigin();
+    const rule = settings && settings.siteRules && settings.siteRules[origin];
+    if (rule === 'deny') return;
+
+    const attached = new Set();
+    const controllers = [];
+
+    function attachAll() {
+      const descriptors = detect.scanMedia(document, 8);
+      for (const descriptor of descriptors) {
+        const key = descriptor.url;
+        if (attached.has(key)) continue;
+        attached.add(key);
+        descriptor.domain = origin;
+        controllers.push(indicator.attachIndicator(descriptor, openPanel, document));
+      }
+    }
+
+    function openPanel(descriptor) {
+      indicator.openMediaPanel(descriptor, (variant, action) => {
+        let suggestedName = '';
+        try { suggestedName = decodeURIComponent(new URL(variant.url).pathname.split('/').pop() || ''); }
+        catch (error) { suggestedName = ''; }
+        chrome.runtime.sendMessage({
+          type: 'swiftfetch_media_selection',
+          payload: {
+            url: variant.url,
+            suggestedName,
+            pageOrigin: origin,
+            contentType: variant.mime || descriptor.mime || 'application/octet-stream',
+            action,
+            metadata: {
+              kind: 'media',
+              site_rule: rule === 'allow' ? 'allow' : 'ask',
+              mime: variant.mime || descriptor.mime || undefined,
+              media: {
+                url: variant.url,
+                mime: variant.mime || descriptor.mime || undefined,
+                label: variant.label,
+                width: descriptor.width || undefined,
+                height: descriptor.height || undefined,
+                variants: descriptor.variants.map((item) => ({
+                  url: item.url, mime: item.mime || undefined, label: item.label,
+                })),
+              },
+            },
+          },
+        }).catch(() => {});
+      }, document);
+    }
+
+    attachAll();
+    const observer = detect.createBoundedObserver(document, attachAll);
+    window.addEventListener('pagehide', () => {
+      observer.disconnect();
+      controllers.forEach((controller) => controller.remove());
+    }, { once: true });
+  }
+
+  void startMediaDetection();
+
 })();

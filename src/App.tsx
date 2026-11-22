@@ -3,10 +3,12 @@ import { formatDate, formatNumber, isActive, isTerminal, statusLabels } from "./
 import { applyDocumentLocale, LocaleProvider, normalizeLocale, translate, type Locale } from "./i18n";
 import { api, asIpcError, hasDesktopCore, listenCore, subscribeCore, type IpcError } from "./ipc";
 import { downloadStore, refreshTasks, useDownloads } from "./store";
-import type { PowerRequest, RecoveryEvent, Settings, ViewId } from "./types";
+import { useResource } from "./hooks";
+import type { PendingConfirmation, PowerRequest, RecoveryEvent, Settings, ViewId } from "./types";
 import { validateDownloadUrl } from "./format";
 import { bootDesktop } from "./desktopBoot";
 import { AddDownloadDialog } from "./components/AddDownloadDialog";
+import { BrowserDownloadConfirmation } from "./components/BrowserDownloadConfirmation";
 import { ErrorBanner, InfoBanner } from "./components/Feedback";
 import { Icon, type IconName } from "./components/Icon";
 import { TaskActionProvider } from "./components/TaskActionProvider";
@@ -46,6 +48,11 @@ function Shell({ locale, onLocale }: { locale: Locale; onLocale: (locale: Locale
   const [connectionAttempt, setConnectionAttempt] = useState(0);
   const [eventError, setEventError] = useState<IpcError | null>(null);
   const [recovery, setRecovery] = useState<RecoveryEvent | null>(null);
+  const [pendingConfirmations, setPendingConfirmations] = useState<PendingConfirmation[]>([]);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const pendingRef = useRef<string | null>(null);
+  const categories = useResource(api.listCategories);
+  const queues = useResource(api.listQueues);
   const [announcement, setAnnouncement] = useState("");
   const [progressAnnouncement, setProgressAnnouncement] = useState("");
   const mainRef = useRef<HTMLElement>(null);
@@ -171,6 +178,30 @@ function Shell({ locale, onLocale }: { locale: Locale; onLocale: (locale: Locale
     return () => { disposed = true; cleanups.forEach((stop) => stop()); };
   }, []);
 
+  useEffect(() => { pendingRef.current = pendingId; }, [pendingId]);
+
+  // Browser handoffs can arrive while the app is closed. Pending confirmations
+  // are persisted by the native host and picked up on the next launch.
+  useEffect(() => {
+    if (!hasDesktopCore()) return;
+    let disposed = false;
+    async function poll() {
+      try {
+        const rows = await api.listPendingConfirmations();
+        if (disposed) return;
+        setPendingConfirmations(rows);
+        if (rows.length > 0 && !pendingRef.current && !document.querySelector("dialog[open]")) {
+          setPendingId(rows[0].id);
+        }
+      } catch {
+        // The core may still be starting; the next poll retries.
+      }
+    }
+    void poll();
+    const timer = window.setInterval(() => { void poll(); }, 2500);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, []);
+
   useEffect(() => {
     function over(event: DragEvent) { if (event.dataTransfer?.types.includes("text/uri-list") || event.dataTransfer?.types.includes("text/plain")) event.preventDefault(); }
     function drop(event: DragEvent) {
@@ -221,6 +252,21 @@ function Shell({ locale, onLocale }: { locale: Locale; onLocale: (locale: Locale
     <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{announcement}</div>
     <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">{progressAnnouncement}</div>
     {taskId && <TaskDetailsDialog key={taskId} taskId={taskId} onClose={() => setTaskId(null)} />}
+    {pendingId && pendingConfirmations.some((row) => row.id === pendingId) && (
+      <BrowserDownloadConfirmation
+        key={pendingId}
+        pending={pendingConfirmations.find((row) => row.id === pendingId)!}
+        categories={categories.data || []}
+        queues={queues.data || []}
+        onClose={() => setPendingId(null)}
+        onResolved={() => {
+          const id = pendingId;
+          setPendingConfirmations((rows) => rows.filter((row) => row.id !== id));
+          setPendingId(null);
+          void refreshTasks().catch(() => undefined);
+        }}
+      />
+    )}
     {adding && <AddDownloadDialog initialUrl={initialUrl} onClose={closeAdd} />}
   </div>;
 }

@@ -82,6 +82,18 @@ const TARGETS = [
     functionName: 'normalizeNativeResponse',
     transform: classicFromSingleExport,
   },
+  {
+    module: 'media-detect.js',
+    bundle: 'media-detect.bundle.js',
+    global: 'SwiftFetchMediaDetect',
+    transform: classicFromModule,
+  },
+  {
+    module: 'media-indicator.js',
+    bundle: 'media-indicator.bundle.js',
+    global: 'SwiftFetchMediaIndicator',
+    transform: classicFromModule,
+  },
 ];
 
 let drift = 0;

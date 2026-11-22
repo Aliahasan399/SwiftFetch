@@ -51,9 +51,11 @@ function createFirefoxChrome() {
     tabsQuery: [],
     storageSet: [],
     menus: [],
+    downloadCancel: [],
   };
   const messageListeners = [];
   const menuListeners = [];
+  const downloadListeners = [];
   const storage = new Map();
   const state = { nativeReply: null, nativeError: null, tabs: [] };
 
@@ -100,6 +102,13 @@ function createFirefoxChrome() {
       },
       onClicked: { addListener: (fn) => menuListeners.push(fn) },
     },
+    downloads: {
+      onCreated: { addListener: (fn) => downloadListeners.push(fn) },
+      cancel(id, callback) {
+        calls.downloadCancel.push(id);
+        if (callback) callback();
+      },
+    },
     tabs: {
       query(queryInfo, callback) {
         calls.tabsQuery.push(queryInfo);
@@ -119,6 +128,7 @@ function createFirefoxChrome() {
     storage,
     messageListeners,
     menuListeners,
+    downloadListeners,
   };
 }
 
@@ -391,5 +401,51 @@ describe('firefox/background.js (real file, callback-style chrome)', () => {
     const result = await harness.sendMessage({ type: 'something_else' });
     assert.equal(result, null);
     assert.deepEqual(harness.calls.getURL, [], 'still no dynamic import at any point');
+  });
+
+  it('intercepts an ordinary browser download and cancels only after handoff', async () => {
+    assert.ok(harness.downloadListeners.length >= 1, 'download interceptor registered');
+    harness.state.nativeReply = { ok: true, value: { task_id: 'd9f2a3c4-5b67-4c8d-9e01-2f3a4b5c6d7e' } };
+    const before = harness.calls.native.length;
+    harness.downloadListeners[0]({
+      id: 42,
+      url: 'https://example.com/archive.zip',
+      filename: 'archive.zip',
+      referrer: 'https://example.com/page',
+      mime: 'application/zip',
+      totalBytes: 2048,
+    });
+    await settle();
+    assert.equal(harness.calls.native.length, before + 1);
+    const intent = harness.calls.native.at(-1).message;
+    assert.equal(intent.protocol, 2);
+    assert.equal(intent.metadata.kind, 'ordinary');
+    assert.equal(intent.metadata.site_rule, 'ask');
+    assert.equal(intent.metadata.size_hint, 2048);
+    assert.deepEqual(harness.calls.downloadCancel, [42]);
+    harness.state.nativeReply = null;
+  });
+
+  it('forwards a media selection with bounded metadata', async () => {
+    harness.state.nativeReply = { ok: true, value: { task_id: 'a1b2c3d4-5e67-4f89-9012-3456789abcde' } };
+    const before = harness.calls.native.length;
+    const selectionResult = await harness.sendMessage({
+      type: 'swiftfetch_media_selection',
+      payload: {
+        url: 'https://example.com/video.mp4',
+        suggestedName: 'video.mp4',
+        pageOrigin: 'https://example.com',
+        contentType: 'video/mp4',
+        metadata: {
+          kind: 'media',
+          site_rule: 'ask',
+          media: { url: 'https://example.com/video.mp4', label: 'Original', variants: [] },
+        },
+      },
+    });
+    assert.equal(selectionResult.ok, true);
+    assert.equal(harness.calls.native.length, before + 1);
+    assert.equal(harness.calls.native.at(-1).message.metadata.kind, 'media');
+    harness.state.nativeReply = null;
   });
 });

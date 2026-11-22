@@ -8,12 +8,16 @@ use tauri::State;
 
 use crate::domain::{
     codes, to_rfc3339, AddDownloadRequest, CommandResult, ControlRequest, ControlResult,
-    DownloadProjection, DownloadStatus, StartPolicy,
+    DownloadProjection, DownloadStatus, MetadataProbe, PendingConfirmation, ProbeRequest,
+    ResolveConfirmationRequest, StartPolicy,
 };
 use crate::engine::AppEngine;
 use crate::security;
 use crate::settings::Settings;
-use crate::store::{BrowserIntake, Category, Queue, Schedule, SecretMigrationResult, Store, TaskRow};
+use crate::store::{
+    BrowserIntake, Category, PendingConfirmationRow, Queue, Schedule, SecretMigrationResult, Store,
+    TaskRow,
+};
 
 // ---------------------------------------------------------------------------
 // DTOs
@@ -352,6 +356,184 @@ pub(crate) fn queue_browser_download(
         Ok(BrowserIntake::Replayed) => Err(("replayed_intent", "SwiftFetch already received this download request.")),
         Ok(BrowserIntake::Expired) => Err(("expired_intent", "The download request expired. Send it again.")),
         Err(_) => Err(("queue_unavailable", "SwiftFetch could not save the download to its local queue.")),
+    }
+}
+
+/// Input recorded by the native host when a browser download needs confirmation.
+pub(crate) struct BrowserConfirmationInput {
+    pub id: String,
+    pub url: String,
+    pub page_origin: String,
+    pub suggested_name: Option<String>,
+    pub content_type: String,
+    pub size_hint: Option<u64>,
+    pub mime: Option<String>,
+    pub kind: String,
+    pub site_rule: String,
+    pub media_json: String,
+    pub expires_at: chrono::DateTime<chrono::Utc>,
+}
+
+/// Persist a pending confirmation. The native host may call this before the
+/// desktop UI is running; the UI picks the row up on launch.
+pub(crate) fn prepare_browser_confirmation(
+    store: &Store,
+    input: BrowserConfirmationInput,
+) -> Result<(), (&'static str, &'static str)> {
+    let raw = store
+        .get_setting("app_settings")
+        .ok_or(("bridge_disabled", "SwiftFetch settings are unavailable."))?;
+    let settings = Settings::from_json(&raw).normalized();
+    if !settings.browser_integration {
+        return Err(("bridge_disabled", "Enable browser integration in SwiftFetch Settings before sending downloads."));
+    }
+    let pending = PendingConfirmationRow {
+        id: input.id,
+        url: input.url,
+        page_origin: input.page_origin,
+        suggested_name: input.suggested_name,
+        content_type: input.content_type,
+        size_hint: input.size_hint.map(|value| value as i64),
+        mime: input.mime,
+        kind: input.kind,
+        site_rule: input.site_rule,
+        media_json: input.media_json,
+        settings_json: raw,
+        created_at: to_rfc3339(chrono::Utc::now()),
+        expires_at: to_rfc3339(input.expires_at),
+    };
+    match store.insert_pending_confirmation(&pending) {
+        Ok(BrowserIntake::Accepted) => Ok(()),
+        Ok(BrowserIntake::Replayed) => Err(("replayed_intent", "This download request was already received.")),
+        Ok(BrowserIntake::Expired) => Err(("expired_intent", "The download request expired before confirmation.")),
+        Ok(BrowserIntake::SettingsChanged) => Err(("settings_changed", "SwiftFetch settings changed. Send the download again.")),
+        Err(_) => Err(("queue_unavailable", "SwiftFetch could not save the confirmation locally.")),
+    }
+}
+
+#[tauri::command]
+pub fn list_pending_confirmations(state: State<'_, Arc<AppEngine>>) -> CommandResult<Vec<PendingConfirmation>> {
+    match state.store().list_pending_confirmations() {
+        Ok(rows) => CommandResult::success(rows),
+        Err(error) => CommandResult::failure(codes::STORE_ERROR, format!("Could not load pending confirmations: {error}"), true),
+    }
+}
+
+#[tauri::command]
+pub fn resolve_browser_confirmation(
+    state: State<'_, Arc<AppEngine>>,
+    req: ResolveConfirmationRequest,
+) -> CommandResult<()> {
+    let store = state.store();
+    let pending = match store.pending_confirmation(&req.id) {
+        Ok(Some(row)) => row,
+        Ok(None) => return CommandResult::failure(codes::TASK_NOT_FOUND, "This confirmation is no longer available.", false),
+        Err(error) => return CommandResult::failure(codes::STORE_ERROR, format!("Could not load the confirmation: {error}"), true),
+    };
+    if req.action == "cancel" {
+        let _ = store.resolve_pending_confirmation(&req.id, false);
+        return CommandResult::success(());
+    }
+    if req.action != "start" && req.action != "queue" {
+        return CommandResult::failure(codes::INVALID_ACTION, "Unknown confirmation action.", false);
+    }
+    let selected_url = match &req.url {
+        Some(value) => {
+            let checked = security::validate_url(value);
+            if !checked.ok {
+                let error = checked.error.unwrap();
+                return CommandResult::failure(&error.code, error.message, error.retryable);
+            }
+            checked.data.unwrap_or_default()
+        }
+        None => pending.url.clone(),
+    };
+    let request = AddDownloadRequest {
+        url: selected_url,
+        suggested_name: req.suggested_name.or(pending.suggested_name),
+        destination_directory: req.destination_directory,
+        queue_id: req.queue_id,
+        category_id: req.category_id,
+        priority: None,
+        start_policy: Some(if req.action == "start" { "immediate" } else { "manual" }.to_string()),
+        headers: Vec::new(),
+        checksum: None,
+        connections: None,
+        speed_limit: None,
+    };
+    match store.resolve_pending_confirmation(&req.id, true) {
+        Ok(()) => {}
+        Err(error) => return CommandResult::failure(codes::STORE_ERROR, format!("Could not update the confirmation: {error}"), true),
+    }
+    let expiry = chrono::DateTime::parse_from_rfc3339(&pending.expires_at)
+        .map(|value| value.with_timezone(&chrono::Utc))
+        .unwrap_or_else(|_| chrono::Utc::now() + chrono::TimeDelta::minutes(5));
+    match queue_browser_download(&store, request, &req.id, expiry) {
+        Ok(()) => CommandResult::success(()),
+        Err((code, message)) => CommandResult::failure(code, message, true),
+    }
+}
+
+#[tauri::command]
+pub fn probe_download_metadata(
+    state: State<'_, Arc<AppEngine>>,
+    req: ProbeRequest,
+) -> CommandResult<MetadataProbe> {
+    let validated = security::validate_url(&req.url);
+    if !validated.ok {
+        let error = validated.error.unwrap();
+        return CommandResult::failure(&error.code, error.message, error.retryable);
+    }
+    let url = validated.data.unwrap_or_default();
+    let engine = Arc::clone(&state);
+    match tauri::async_runtime::block_on(engine.probe_metadata(&url)) {
+        Ok(meta) => {
+            let suggested = meta
+                .content_disposition
+                .as_deref()
+                .and_then(security::safe_filename_from_content_disposition);
+            CommandResult::success(MetadataProbe {
+                size: meta.total_bytes,
+                content_type: meta.content_type,
+                suggested_name: suggested,
+            })
+        }
+        Err(error) => CommandResult::failure(error.code, error.message, error.retryable),
+    }
+}
+
+#[tauri::command]
+pub fn inspect_media_manifest(
+    req: ProbeRequest,
+) -> CommandResult<Vec<crate::media_manifest::MediaVariant>> {
+    let validated = security::validate_url(&req.url);
+    if !validated.ok {
+        let error = validated.error.unwrap();
+        return CommandResult::failure(&error.code, error.message, error.retryable);
+    }
+    let url = validated.data.unwrap_or_default();
+    let result = tauri::async_runtime::block_on(async {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|_| codes::NETWORK_ERROR.to_string())?;
+        let response = client.get(&url).send().await.map_err(|error| error.to_string())?;
+        if response.status().is_success() == false {
+            return Err(format!("manifest request returned HTTP {}", response.status().as_u16()));
+        }
+        if response.content_length().is_some_and(|len| len as usize > crate::media_manifest::MAX_MANIFEST_BYTES) {
+            return Err("The media manifest is too large.".to_string());
+        }
+        let bytes = response.bytes().await.map_err(|error| error.to_string())?;
+        if bytes.len() > crate::media_manifest::MAX_MANIFEST_BYTES {
+            return Err("The media manifest is too large.".to_string());
+        }
+        let text = String::from_utf8_lossy(&bytes).to_string();
+        Ok(crate::media_manifest::parse(&url, &text))
+    });
+    match result {
+        Ok(parsed) => parsed,
+        Err(message) => CommandResult::failure(codes::NETWORK_ERROR, message, true),
     }
 }
 

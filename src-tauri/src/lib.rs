@@ -6,6 +6,7 @@
 pub mod commands;
 pub mod domain;
 pub mod engine;
+pub mod media_manifest;
 pub mod ratelimit;
 pub mod security;
 pub mod settings;
@@ -340,6 +341,10 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::add_download,
             commands::control_download,
+            commands::list_pending_confirmations,
+            commands::resolve_browser_confirmation,
+            commands::probe_download_metadata,
+            commands::inspect_media_manifest,
             commands::list_tasks,
             commands::get_task,
             commands::get_task_segments,
