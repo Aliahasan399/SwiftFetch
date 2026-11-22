@@ -928,3 +928,109 @@ fn truncated_working_file_does_not_get_marked_complete() {
     assert_eq!(bytes, expected_body(1048576), "no zero-filled holes");
     assert_eq!(row.received_bytes, 1048576);
 }
+
+// ---------------------------------------------------------------------------
+// HLS / DASH segment assembly (Phase 5)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn assembles_hls_segments_into_one_file() {
+    let fixture = Fixture::start().expect("fixture server");
+    let h = harness().expect("engine harness");
+    let dir = temp_dir("hls-assembly");
+    let dest = dir.join("video.ts").to_string_lossy().to_string();
+    let task = add_task(&h.store, &fixture.url("/manifest/hls.m3u8"), &dest, 1);
+    h.engine.spawn_task(&task.id);
+    let row = wait_for_status(
+        h.store.as_ref(),
+        &task.id,
+        DownloadStatus::Completed,
+        Duration::from_secs(30),
+    );
+    let bytes = std::fs::read(&dest).expect("assembled file");
+    assert_eq!(bytes.len(), 192, "128 + 64 segment bytes");
+    assert_eq!(row.received_bytes, 192);
+}
+
+#[test]
+fn assembles_dash_initialization_and_media_segments() {
+    let fixture = Fixture::start().expect("fixture server");
+    let h = harness().expect("engine harness");
+    let dir = temp_dir("dash-assembly");
+    let dest = dir.join("video.m4s").to_string_lossy().to_string();
+    let task = add_task(&h.store, &fixture.url("/manifest/dash.mpd"), &dest, 1);
+    h.engine.spawn_task(&task.id);
+    let row = wait_for_status(
+        h.store.as_ref(),
+        &task.id,
+        DownloadStatus::Completed,
+        Duration::from_secs(30),
+    );
+    let bytes = std::fs::read(&dest).expect("assembled file");
+    assert_eq!(bytes.len(), 160, "init 32 + two 64-byte media segments");
+    assert_eq!(row.received_bytes, 160);
+}
+
+#[test]
+fn rejects_encrypted_and_live_hls_manifests() {
+    let fixture = Fixture::start().expect("fixture server");
+    for path in ["/manifest/hls-encrypted.m3u8", "/manifest/hls-live.m3u8"] {
+        let h = harness().expect("engine harness");
+        let dir = temp_dir("hls-reject");
+        let dest = dir.join("out.ts").to_string_lossy().to_string();
+        let task = add_task(&h.store, &fixture.url(path), &dest, 1);
+        h.engine.spawn_task(&task.id);
+        let row = wait_for_status(
+            h.store.as_ref(),
+            &task.id,
+            DownloadStatus::Failed,
+            Duration::from_secs(20),
+        );
+        assert_eq!(row.last_error_code.as_deref(), Some(codes::UNSUPPORTED_SCHEME));
+    }
+}
+
+#[test]
+fn segment_failure_cleans_up_working_file() {
+    let fixture = Fixture::start().expect("fixture server");
+    let h = harness().expect("engine harness");
+    let mut settings = Settings::default();
+    settings.keep_partial_on_failure = false;
+    h.engine.set_settings(settings);
+    let dir = temp_dir("hls-failure");
+    let dest = dir.join("broken.ts").to_string_lossy().to_string();
+    let task = add_task(&h.store, &fixture.url("/manifest/hls-bad-segment.m3u8"), &dest, 1);
+    h.engine.spawn_task(&task.id);
+    let row = wait_for_status(
+        h.store.as_ref(),
+        &task.id,
+        DownloadStatus::Failed,
+        Duration::from_secs(20),
+    );
+    assert_eq!(row.last_error_code.as_deref(), Some(codes::HTTP_ERROR));
+    let part = task_part_path(&dest, &task.id);
+    let deadline = Instant::now() + Duration::from_secs(3);
+    while part.exists() && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    assert!(!part.exists(), "working file removed after failure");
+}
+
+#[test]
+fn cancellation_stops_segment_assembly() {
+    let fixture = Fixture::start().expect("fixture server");
+    let h = harness().expect("engine harness");
+    let dir = temp_dir("hls-cancel");
+    let dest = dir.join("slow.ts").to_string_lossy().to_string();
+    let task = add_task(&h.store, &fixture.url("/manifest/hls-slow.m3u8"), &dest, 1);
+    h.engine.spawn_task(&task.id);
+    std::thread::sleep(Duration::from_millis(250));
+    assert!(h.engine.control(&task.id, "cancel", None).ok, "cancel must be accepted");
+    let row = wait_for_status(
+        h.store.as_ref(),
+        &task.id,
+        DownloadStatus::Cancelled,
+        Duration::from_secs(20),
+    );
+    assert_eq!(row.status_enum(), DownloadStatus::Cancelled);
+}

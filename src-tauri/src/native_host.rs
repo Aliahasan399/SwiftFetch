@@ -257,6 +257,7 @@ fn handle(input: impl Read, database: &Path) -> Reply {
         Ok(intent) => intent,
         Err(reply) => return reply,
     };
+    let protocol = intent.protocol;
     let page_origin = intent.page_origin.clone();
     let content_type = intent.content_type.clone();
     let metadata = intent.metadata.clone();
@@ -283,7 +284,9 @@ fn handle(input: impl Read, database: &Path) -> Reply {
         return Reply::reject("site_blocked", "This site is blocked in the SwiftFetch popup.");
     }
 
-    if auto_accept && site_rule == "allow" {
+    // Legacy v1 intents were explicit gesture handoffs and have always queued
+    // directly. Preserve that contract; only v2 intents opt into confirmation.
+    if protocol == 1 || (auto_accept && site_rule == "allow") {
         return match crate::commands::queue_browser_download(&store, request, &id, expires_at) {
             Ok(()) => Reply::Accepted { ok: true, value: Receipt { task_id: id } },
             Err((code, message)) => Reply::reject(code, message),
@@ -474,6 +477,39 @@ mod tests {
         assert_eq!(pending[0].url, "https://example.com/video.mp4");
         assert_eq!(pending[0].size_hint, Some(4096));
         assert_eq!(store.count_tasks().unwrap(), 0);
+    }
+
+    #[test]
+    fn v1_intent_keeps_legacy_direct_queue_behavior() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("state.sqlite");
+        let store = Store::open(&path).unwrap();
+        store.ensure_default_queue().unwrap();
+        store.ensure_default_category().unwrap();
+        let settings = crate::settings::Settings {
+            browser_integration: true,
+            ..Default::default()
+        };
+        store.set_setting("app_settings", &settings.to_json()).unwrap();
+        drop(store);
+
+        let intent = json!({
+            "protocol": 1,
+            "type": "download_intent",
+            "request_id": Uuid::new_v4().to_string(),
+            "url": "https://example.com/legacy.bin",
+            "suggested_name": "legacy.bin",
+            "page_origin": "https://example.com",
+            "content_type": "application/octet-stream",
+            "user_initiated": true,
+            "cookies": [],
+            "expires_at": (Utc::now() + TimeDelta::minutes(2)).to_rfc3339()
+        });
+        let reply = handle(framed(intent).as_slice(), &path);
+        assert!(matches!(reply, Reply::Accepted { .. }));
+        let store = Store::open_existing(&path).unwrap();
+        assert_eq!(store.count_tasks().unwrap(), 1);
+        assert_eq!(store.list_pending_confirmations().unwrap().len(), 0);
     }
 
     #[test]

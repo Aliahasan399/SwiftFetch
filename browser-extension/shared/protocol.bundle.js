@@ -8,6 +8,7 @@
 // dynamic import() inside an event page. The module keeps its exports for
 // Node tests and for the Chrome service worker.
 // ------------------------------------------------------------------ #
+(function () {
 /**
  * SwiftFetch browser bridge — wire protocol and validators.
  *
@@ -776,3 +777,5 @@ if (typeof module !== 'undefined' && module.exports) {
 
 /* Classic-script export: available as a global in a non-module context. */
 globalThis.SwiftFetchProtocol = api;
+
+})();

@@ -1082,11 +1082,150 @@ impl Engine {
 
     // ----------------------------------------------------------- transfer
 
+    fn static_error_code(code: &str) -> &'static str {
+        match code {
+            codes::INVALID_URL => codes::INVALID_URL,
+            codes::INVALID_ACTION => codes::INVALID_ACTION,
+            codes::UNSUPPORTED_SCHEME => codes::UNSUPPORTED_SCHEME,
+            codes::HTTP_ERROR => codes::HTTP_ERROR,
+            codes::NETWORK_ERROR => codes::NETWORK_ERROR,
+            codes::INVALID_DESTINATION => codes::INVALID_DESTINATION,
+            _ => codes::INTERNAL,
+        }
+    }
+
+    /// Download a selected HLS/DASH representation as one file by assembling
+    /// its segments through this engine's existing working-file path.
+    async fn execute_manifest(
+        self: &Arc<Self>,
+        rt: &Arc<Runtime>,
+        row: &TaskRow,
+    ) -> Result<(), EngineError> {
+        use crate::media_manifest as media;
+
+        let validated = security::validate_url(&row.original_url);
+        if !validated.ok {
+            let error = validated.error.unwrap();
+            return Err(EngineError::new(Self::static_error_code(&error.code), error.message, false));
+        }
+        let url = validated.data.unwrap_or_default();
+        let client = self.client();
+
+        let response = match until_control(rt, client.get(&url).send()).await {
+            Ok(Ok(response)) => response,
+            Ok(Err(error)) => {
+                return Err(EngineError::new(codes::NETWORK_ERROR, redact_network_error(&error.to_string()), true));
+            }
+            Err(error) => return Err(error),
+        };
+        if !response.status().is_success() {
+            return Err(EngineError::new(
+                codes::HTTP_ERROR,
+                format!("Manifest request returned HTTP {}", response.status().as_u16()),
+                false,
+            ));
+        }
+        if response.content_length().is_some_and(|len| len as usize > media::MAX_MANIFEST_BYTES) {
+            return Err(EngineError::new(codes::INVALID_ACTION, "The media manifest is too large.", false));
+        }
+        let manifest_bytes = response.bytes().await.map_err(|error| {
+            EngineError::new(codes::NETWORK_ERROR, redact_network_error(&error.to_string()), true)
+        })?;
+        if manifest_bytes.len() > media::MAX_MANIFEST_BYTES {
+            return Err(EngineError::new(codes::INVALID_ACTION, "The media manifest is too large.", false));
+        }
+        let text = String::from_utf8_lossy(&manifest_bytes);
+        let parsed = media::expand(&url, &text);
+        if !parsed.ok {
+            let error = parsed.error.unwrap();
+            return Err(EngineError::new(Self::static_error_code(&error.code), error.message, false));
+        }
+        let plan = parsed.data.unwrap_or_default();
+
+        let part_path = task_part_path(&row.destination_path, &row.id);
+        if let Some(parent) = Path::new(&row.destination_path).parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if part_path.exists() {
+            self.log(
+                Some(&row.id),
+                "manifest_restarted",
+                serde_json::json!({ "reason": "segment_assembly_has_no_checkpoints" }),
+            );
+        }
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&part_path)
+            .await
+            .map_err(|error| EngineError::new(codes::PERMISSION_DENIED, format!("Could not open the working file: {error}"), false))?;
+
+        let mut total = 0u64;
+        for segment in plan.segments {
+            if rt.cancel.load(Ordering::SeqCst) {
+                return Err(EngineError::cancelled());
+            }
+            if rt.paused.load(Ordering::SeqCst) {
+                return Ok(());
+            }
+            let response = client.get(&segment).send().await.map_err(|error| {
+                EngineError::new(codes::NETWORK_ERROR, redact_network_error(&error.to_string()), true)
+            })?;
+            if !response.status().is_success() {
+                return Err(EngineError::new(
+                    codes::HTTP_ERROR,
+                    format!("Segment request returned HTTP {}", response.status().as_u16()),
+                    false,
+                ));
+            }
+            if response.content_length().is_some_and(|len| len > media::MAX_SEGMENT_BYTES) {
+                return Err(EngineError::new(codes::INVALID_ACTION, "A media segment is too large.", false));
+            }
+            let mut stream = response.bytes_stream();
+            while let Some(chunk) = stream.next().await {
+                if rt.cancel.load(Ordering::SeqCst) {
+                    return Err(EngineError::cancelled());
+                }
+                let chunk = chunk.map_err(|error| {
+                    EngineError::new(codes::NETWORK_ERROR, redact_network_error(&error.to_string()), true)
+                })?;
+                let length = chunk.len() as u64;
+                if total.saturating_add(length) > media::MAX_TOTAL_BYTES {
+                    return Err(EngineError::new(codes::INVALID_ACTION, "The assembled media exceeds the size limit.", false));
+                }
+                file.write_all(&chunk).await.map_err(|error| {
+                    EngineError::new(codes::DISK_FULL, format!("Could not write a media segment: {error}"), false)
+                })?;
+                total = total.saturating_add(length);
+                rt.received.fetch_add(length, Ordering::Relaxed);
+            }
+            self.emit_progress(row.id.as_str(), rt, DownloadStatus::Downloading);
+        }
+        file.flush().await.map_err(|error| {
+            EngineError::new(codes::DISK_FULL, format!("Could not finalize the media file: {error}"), false)
+        })?;
+        drop(file);
+        self.log(
+            Some(&row.id),
+            "manifest_assembled",
+            serde_json::json!({ "kind": plan.kind, "bytes": total }),
+        );
+        Ok(())
+    }
+
     async fn execute(
         self: &Arc<Self>,
         rt: &Arc<Runtime>,
         row: &TaskRow,
     ) -> Result<(), EngineError> {
+        // Media manifest tasks reuse this engine's task lifecycle, working file,
+        // cancellation, verification and finalisation. They only replace the
+        // byte-acquisition step with bounded segment assembly.
+        let lower = row.original_url.to_ascii_lowercase();
+        if lower.contains(".m3u8") || lower.contains(".mpd") {
+            return self.execute_manifest(rt, row).await;
+        }
         let headers = parse_headers(&row.headers_json)?;
         let meta = until_control(rt, self.probe(&row.original_url, &headers)).await??;
         let mut headers = headers;

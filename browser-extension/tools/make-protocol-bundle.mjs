@@ -52,8 +52,11 @@ function classicFromModule(source, { global }) {
     throw new Error('module does not define the `api` object the global assigns');
   }
   const head = source.slice(0, index).replace(/\s+$/, '');
+  // Wrap in an IIFE: several generated bundles share one content-script world,
+  // and each declares its own `api` constant. Without isolation the second
+  // bundle throws "Identifier 'api' has already been declared".
   const body = `${head}\n\n/* Classic-script export: available as a global in a non-module context. */\nglobalThis.${global} = api;\n`;
-  return `${BANNER}${body}`;
+  return `${BANNER}(function () {\n${body}\n})();\n`;
 }
 
 /** Small modules that export a single function: rewrite the statement. */
@@ -65,7 +68,7 @@ function classicFromSingleExport(source, { functionName, global }) {
   const body = source
     .replace(declaration, `function ${functionName}`)
     .replace(/\s+$/, '');
-  return `${BANNER}${body}\n\n/* Classic-script export: available as a global in a non-module context. */\nglobalThis.${global} = { ${functionName} };\n`;
+  return `${BANNER}(function () {\n${body}\n\n/* Classic-script export: available as a global in a non-module context. */\nglobalThis.${global} = { ${functionName} };\n})();\n`;
 }
 
 const TARGETS = [

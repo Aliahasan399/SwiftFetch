@@ -153,7 +153,19 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self._send(200, b"ok")
             return
 
-        if path.startswith("/bytes/"):
+        if path == "/manifest/hls.m3u8":
+            self._send(200, b"#EXTM3U\n#EXT-X-ENDLIST\n#EXTINF:10,\n/bytes/128\n#EXTINF:10,\n/bytes/64\n", {"Content-Type": "application/vnd.apple.mpegurl"})
+        elif path == "/manifest/hls-live.m3u8":
+            self._send(200, b"#EXTM3U\n#EXTINF:10,\n/bytes/128\n", {"Content-Type": "application/vnd.apple.mpegurl"})
+        elif path == "/manifest/hls-encrypted.m3u8":
+            self._send(200, b"#EXTM3U\n#EXT-X-KEY:METHOD=AES-128\n#EXT-X-ENDLIST\n#EXTINF:10,\n/bytes/128\n", {"Content-Type": "application/vnd.apple.mpegurl"})
+        elif path == "/manifest/hls-bad-segment.m3u8":
+            self._send(200, b"#EXTM3U\n#EXT-X-ENDLIST\n#EXTINF:10,\n/status/500\n", {"Content-Type": "application/vnd.apple.mpegurl"})
+        elif path == "/manifest/hls-slow.m3u8":
+            self._send(200, b"#EXTM3U\n#EXT-X-ENDLIST\n#EXTINF:10,\n/slow/2000\n", {"Content-Type": "application/vnd.apple.mpegurl"})
+        elif path == "/manifest/dash.mpd":
+            self._send(200, b'<MPD><Representation id="test" bandwidth="1000"><SegmentTemplate initialization="/bytes/32" media="/bytes/64" startNumber="1"><SegmentTimeline><S d="4" r="1"/></SegmentTimeline></SegmentTemplate></Representation></MPD>', {"Content-Type": "application/dash+xml"})
+        elif path.startswith("/bytes/"):
             self._handle_bytes(path.rsplit("/", 1)[-1], head_only)
         elif path.startswith("/range/"):
             self._handle_range(path.rsplit("/", 1)[-1], head_only)

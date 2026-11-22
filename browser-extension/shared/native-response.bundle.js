@@ -8,6 +8,7 @@
 // dynamic import() inside an event page. The module keeps its exports for
 // Node tests and for the Chrome service worker.
 // ------------------------------------------------------------------ #
+(function () {
 const failures = {
   bridge_disabled: 'Enable browser integration in the SwiftFetch desktop Settings.',
   app_unavailable: 'Open SwiftFetch once, enable browser integration, and send the link again.',
@@ -29,3 +30,4 @@ function normalizeNativeResponse(response) {
 
 /* Classic-script export: available as a global in a non-module context. */
 globalThis.SwiftFetchNativeResponse = { normalizeNativeResponse };
+})();

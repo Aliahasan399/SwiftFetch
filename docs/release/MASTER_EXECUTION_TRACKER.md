@@ -127,6 +127,18 @@
 | P14.3-6 | Cross-browser testing | PARTIAL | parent | harness/package tests; real browsers not executed |
 | P14.3-7 | Security, regression, release verification | COMPLETED (automated) | parent | `artifacts/verification/report-20261122-132627.json`; 8/8 checks; `SWIFTFETCH_SMART_DOWNLOAD_EXPERIENCE_TEST_REPORT.md` |
 
+### Phase 14.4 — Remaining implementation and development build
+| Task ID | Description | Status | Agent | Evidence |
+|---|---|---|---|---|
+| P14.4-1 | Baseline inspection | COMPLETED | parent | `SWIFTFETCH_BASELINE_INSPECTION.md` |
+| P14.4-2 | Complete HLS/DASH segment downloading | COMPLETED | parent | `media_manifest.rs`, `engine.rs`, 8 unit + 5 integration tests |
+| P14.4-3 | Phase 3 real-browser verification | PARTIAL | parent | Chrome fixture PASS; `SWIFTFETCH_REAL_BROWSER_ACCEPTANCE_REPORT.md` |
+| P14.4-4 | Phase 6 real cross-browser acceptance | PARTIAL | parent | Edge/Firefox BLOCKED; owner second-laptop task |
+| P14.4-5 | Fresh unsigned development installer | COMPLETED | parent | `SWIFTFETCH_DEVELOPMENT_BUILD_REPORT.md`; staged hashes |
+| P14.4-6 | Second-laptop acceptance guide | COMPLETED | parent | `SWIFTFETCH_SECOND_LAPTOP_ACCEPTANCE_GUIDE.md` |
+| P14.4-7 | Final verification | COMPLETED | parent | `artifacts/verification/report-20261122-192556.json` (8/8) |
+| P14.4-8 | Owner second-laptop results | BLOCKED_OWNER | — | awaiting owner evidence |
+
 ### Phase 14.2 — SignPath inquiry waiting stage (controlled, no approval)
 | Task ID | Description | Status | Agent | Evidence |
 |---|---|---|---|---|

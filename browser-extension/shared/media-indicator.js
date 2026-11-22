@@ -78,7 +78,11 @@ function attachIndicator(descriptor, onClick, doc) {
 
   let removed = false;
   function update() {
-    if (removed || !descriptor.element.isConnected) return;
+    if (removed) return;
+    if (!descriptor.element.isConnected) {
+      host.style.display = 'none';
+      return;
+    }
     const rect = descriptor.element.getBoundingClientRect();
     const visible = rect.width >= 180 && rect.height >= 100 && rect.bottom > 0 && rect.top < window.innerHeight;
     host.style.display = visible ? 'block' : 'none';

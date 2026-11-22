@@ -8,6 +8,7 @@
 // dynamic import() inside an event page. The module keeps its exports for
 // Node tests and for the Chrome service worker.
 // ------------------------------------------------------------------ #
+(function () {
 /**
  * SwiftFetch floating media indicator and selection panel.
  * Original lightweight design: small, theme-aware, keyboard accessible,
@@ -88,7 +89,11 @@ function attachIndicator(descriptor, onClick, doc) {
 
   let removed = false;
   function update() {
-    if (removed || !descriptor.element.isConnected) return;
+    if (removed) return;
+    if (!descriptor.element.isConnected) {
+      host.style.display = 'none';
+      return;
+    }
     const rect = descriptor.element.getBoundingClientRect();
     const visible = rect.width >= 180 && rect.height >= 100 && rect.bottom > 0 && rect.top < window.innerHeight;
     host.style.display = visible ? 'block' : 'none';
@@ -182,3 +187,5 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api;
 
 /* Classic-script export: available as a global in a non-module context. */
 globalThis.SwiftFetchMediaIndicator = api;
+
+})();

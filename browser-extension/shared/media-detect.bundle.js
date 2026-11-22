@@ -8,6 +8,7 @@
 // dynamic import() inside an event page. The module keeps its exports for
 // Node tests and for the Chrome service worker.
 // ------------------------------------------------------------------ #
+(function () {
 /**
  * SwiftFetch media detection — bounded, gesture-free discovery of accessible
  * HTML5 video/audio sources. This module never starts a download and never
@@ -146,3 +147,5 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api;
 
 /* Classic-script export: available as a global in a non-module context. */
 globalThis.SwiftFetchMediaDetect = api;
+
+})();
