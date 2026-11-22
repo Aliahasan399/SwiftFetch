@@ -37,6 +37,7 @@ All commands ran from `E:\CloneIdm\swiftfetch` in Windows PowerShell.
 | `./tools/audit-installer.ps1` | 0 | `artifacts/installer-audit/audit-20261122-093740.json`; 18 findings — 0 FAIL, 6 WARN, 2 BLOCKER |
 | `./tools/installer-data-safety.ps1` | 0 | `artifacts/installer-data-safety/data-safety-20261122-093816.json`; 5/5 scenarios preserve `swiftfetch\` data |
 | `./tools/verify-installer.ps1 -ExpectedMsiSha256 … -ExpectedNsisSha256 …` | 0 | `artifacts/installer-2059e517624b4f02b37bcfd83f88b4ed/result.json`; MSI extraction + 14 smoke passes, 1 skip; hashes matched |
+| `./tools/verify.ps1` (canonical suite) | 0 | `artifacts/verification/report-20261122-095135.json`; `success: true`, 7/7 checks (46 fixture, 128 Rust, 41 frontend, 83 browser assertions) |
 
 The NSIS path in `verify-installer.ps1` is verified statically (metadata + hash) only; it was
 not installed on this machine.
