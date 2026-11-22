@@ -1,8 +1,12 @@
 # SwiftFetch — questions for SignPath Foundation (Phase 3.1)
 
-**Status:** PREPARED, NOT SENT. No account, application, or external message has been created.
-**Owner action:** send through SignPath's official contact/support channel and archive the replies.
-Do not invent answers or treat silence as approval.
+**Status:** INQUIRY REPORTED SENT BY OWNER — question-level send status UNVERIFIED.
+The owner reports sending an eligibility inquiry to `support@signpath.io` with subject
+"Eligibility clarification — SwiftFetch open-source Windows download manager". The email body was
+not provided to this workspace, so **no individual question below is marked SENT**. No reply, ticket
+number, response date, support confirmation, or answer is recorded here.
+**Owner action:** archive the sent email and any written reply; confirm which questions it contained;
+do not invent answers or treat silence as approval.
 
 ## Context to include with the message
 
@@ -65,14 +69,30 @@ before submitting. The installers are MSI (WiX) and NSIS EXE."
   page)? We currently use: "Free code signing provided by SignPath.io, certificate by SignPath
   Foundation".
 
-## Recording template for the owner (no invented answers)
+## Response-recording section — written answers only
 
-| # | Topic | Question sent | Reply received | Date | Impact on application |
-|---|---|---|---|---|---|
-| 1 | Bangladesh eligibility | — | — | — | — |
-| 2 | Individual eligibility | — | — | — | — |
-| 3 | Solo roles | — | — | — | — |
-| 4 | Renewal | — | — | — | — |
-| 5 | MSI/NSIS signing | — | — | — | — |
+No answer, ticket number, or response date is recorded. "Prepared in 3.1" means the topic appears in
+this document; it does **not** prove it was included in the owner's sent email. "Identified in 3.2"
+means the topic was found in the gap review and was **not** in this document before that review.
 
-Do not submit the application until items 1–3 have written answers.
+| # | Topic | Origin | Question-level send status | Written answer | Date received | Source / ticket | Impact on application |
+|---|---|---|---|---|---|---|---|
+| 1 | Bangladesh eligibility | Prepared in 3.1 | UNVERIFIED — awaiting written answer | — | — | — | — |
+| 2 | Individual-maintainer eligibility | Prepared in 3.1 | UNVERIFIED — awaiting written answer | — | — | — | — |
+| 3 | Solo Author / Reviewer / Approver arrangement | Prepared in 3.1 | UNVERIFIED — awaiting written answer | — | — | — | — |
+| 4 | CDLA-Permissive-2.0 compatibility with OSI license condition | Identified in 3.2 | UNVERIFIED — inclusion in sent email not evidenced | — | — | — | — |
+| 5 | Existing public release requirement ("released in the form to be signed") | Prepared in 3.1 (contextual) | UNVERIFIED — awaiting written answer | — | — | — | — |
+| 6 | Reputation expectations for a new OSS download manager | Identified in 3.2 | UNVERIFIED — inclusion in sent email not evidenced | — | — | — | — |
+| 7 | Website and privacy contact requirements | Identified in 3.2 | UNVERIFIED — inclusion in sent email not evidenced | — | — | — | — |
+| 8 | Certificate renewal | Prepared in 3.1 | UNVERIFIED — awaiting written answer | — | — | — | — |
+| 9 | MSI deep signing and NSIS executable signing | Prepared in 3.1 | UNVERIFIED — awaiting written answer | — | — | — | — |
+
+### Recording rules
+- Fill a row only from an actual written reply from SignPath; record its date and source (email,
+  ticket URL or support thread). Do not copy assumptions into the answer column.
+- If the owner confirms a question was in the sent email, change only that row's send status to
+  `SENT / AWAITING RESPONSE` and record the owner's confirmation as the basis. Do not mark all rows
+  sent on the basis of the subject line alone.
+- Do not treat absence of a reply as approval. Do not submit the application until items 1–4 and 7
+  have written answers, and until the "released" condition (5) is resolved in writing or by an
+  owner decision that does not change NO-GO.

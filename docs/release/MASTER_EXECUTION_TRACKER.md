@@ -114,3 +114,12 @@
 | P14.1-5 | Prepare inert GitHub Actions signing configuration | COMPLETED (template only) | parent | `docs/release/templates/sign-release.yml.template` (outside `.github/workflows/`) |
 | P14.1-6 | Owner fills placeholders, answers provider questions, verifies identity, approves submission | BLOCKED_OWNER | — | awaiting explicit owner authorization |
 | P14.1-7 | Submit application / install workflow / activate signing | BLOCKED_OWNER | — | explicitly not performed |
+
+### Phase 14.2 — SignPath inquiry waiting stage (controlled, no approval)
+| Task ID | Description | Status | Agent | Evidence |
+|---|---|---|---|---|
+| P14.2-1 | Owner reports eligibility inquiry sent to support@signpath.io; subject "Eligibility clarification — SwiftFetch open-source Windows download manager" | COMPLETED (owner-reported) | owner / parent | `docs/release/SIGNPATH_QUESTIONS.md` status section; email body not available to workspace |
+| P14.2-2 | Verify which individual questions were actually included in the sent email | BLOCKED_OWNER | — | question-level SENT status deliberately UNVERIFIED; no fabricated ticket/date |
+| P14.2-3 | Receive and record written SignPath answers | BLOCKED_EXTERNAL | — | response-recording table prepared; no reply received or claimed |
+| P14.2-4 | Respond to written answers and re-assess application readiness | BLOCKED_EXTERNAL | — | no submission recommended while items 1–4 and 7 are unanswered |
+| P14.2-5 | Submit SignPath application / create account / activate signing | BLOCKED_OWNER | — | explicitly not performed in this stage |
