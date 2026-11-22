@@ -81,3 +81,13 @@
 | P12-4 | Update clean-machine plan and write installer engineering docs | COMPLETED | parent | `CLEAN_MACHINE_ACCEPTANCE.md`; `INSTALLER_ENGINEERING.md`; `INSTALLER_READINESS_REPORT.md` |
 | P12-5 | Real clean-VM install/upgrade/downgrade/uninstall/rollback | BLOCKED_EXTERNAL | — | no clean Windows VM; see `CLEAN_MACHINE_ACCEPTANCE.md` |
 | P12-6 | Trusted Authenticode signing | BLOCKED_OWNER | — | no certificate; artifacts remain `NotSigned` |
+
+## Phase 13 — Post-Phase-2 owner-authorized actions
+| Task ID | Description | Status | Agent | Evidence |
+|---|---|---|---|---|
+| P13-1 | Correct NSIS opt-in app-data deletion path; preserve by default; test preserve/delete/unrelated | COMPLETED | parent | `tools/patch-nsis-cleanup.ps1`; `tools/rebuild-nsis-installer.ps1`; `docs/release/NSIS_CLEANUP_FIX.md`; `artifacts/installer-data-safety/data-safety-20261122-100440.json` |
+| P13-2 | Full MSI/NSIS clean-VM acceptance procedure (simulated vs executed) | COMPLETED (procedure only) | parent | `docs/release/INSTALLER_ACCEPTANCE_PROCEDURE.md`; VM rows `NOT_EXECUTED` |
+| P13-3 | Hash baseline policy; unsigned historical vs signed distribution record | COMPLETED | parent | `docs/release/INSTALLER_HASH_BASELINE.md`; `tools/generate-distribution-hashes.ps1` (refusal verified) |
+| P13-4 | Update outdated owner-decision status in CDLA investigation | COMPLETED (separate commit `d4ae93e`) | parent | `docs/release/CDLA_COMPATIBILITY_INVESTIGATION.md` |
+| P13-5 | Execute clean-VM acceptance | BLOCKED_EXTERNAL | — | no clean Windows VM |
+| P13-6 | Produce signed artifacts and distribution hashes | BLOCKED_OWNER | — | no certificate; no signing authorized |

@@ -61,10 +61,9 @@ These match `docs/release/FINAL_BUILD_EVIDENCE.md` and were re-measured by
   (`installer.nsi:799-861`).
 - App data is deleted **only** when the "Delete app data" checkbox is selected AND the run is
   not an update (`installer.nsi:863-879`). By default all user data is preserved.
-- Known defect: the cleanup targets `$APPDATA\com.swiftfetch.app` and
-  `$LOCALAPPDATA\com.swiftfetch.app`, while runtime data lives at `%APPDATA%\swiftfetch`
-  (`lib.rs:60-62`). The opt-in deletion does not remove the real data directory. It is
-  documented here and not changed in Phase 2.
+- Corrected after Phase 2: cleanup now targets only `$APPDATA\swiftfetch`, and no `LOCALAPPDATA`
+  tree is removed. See `docs/release/NSIS_CLEANUP_FIX.md` for the patch, recompile and simulation
+  evidence. Real VM verification is still required.
 
 ### 3.3 Data separation conclusion
 
@@ -78,10 +77,13 @@ conclusion from source inspection, not a clean-machine result.
 
 | Script | Purpose | Execution mode |
 |---|---|---|
-| `tools/build-installers.ps1` | Single auditable build entry point; records toolchain, lockfiles, artifact hashes; refuses to build if update-channel env vars are set; `-InspectOnly` audits artifacts without rebuilding | build / inspect |
+| `tools/build-installers.ps1` | Single auditable build entry point; records toolchain, lockfiles, artifact hashes; refuses to build if update-channel env vars are set; after a real build it patches and recompiles NSIS; `-InspectOnly` audits artifacts without rebuilding | build / inspect |
 | `tools/verify-installer.ps1` | MSI administrative extraction + packaged runtime smoke test; NSIS metadata + hash check; optional pinned expected hashes | real extraction, no install |
 | `tools/audit-installer.ps1` | Static WiX/NSIS/lib.rs audit against the accepted baseline, hash verification, finding list | static only |
-| `tools/installer-data-safety.ps1` | Isolated synthetic `%APPDATA%` simulation of MSI upgrade/uninstall and NSIS update/uninstall scenarios | offline simulation |
+| `tools/installer-data-safety.ps1` | Isolated synthetic `%APPDATA%` simulation of MSI upgrade/uninstall and NSIS update/uninstall, opt-in deletion and unrelated-file integrity | offline simulation |
+| `tools/patch-nsis-cleanup.ps1` | Idempotent post-build correction of the NSIS app-data deletion path, with backup and guard verification | build-time patch |
+| `tools/rebuild-nsis-installer.ps1` | Recompiles NSIS from the patched script so the .exe matches the corrected uninstaller | compilation |
+| `tools/generate-distribution-hashes.ps1` | Emits `SHA256SUMS` only for Authenticode-valid signed installers | signing-gated |
 
 Backups were taken before editing existing files:
 `tools/verify-installer.ps1.bak-20261122-093603` and
