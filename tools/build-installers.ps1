@@ -63,6 +63,11 @@ try {
         & (Join-Path $PSScriptRoot 'build-windows.ps1') @buildArgs
         $built = $true
         $buildCommand = 'tools/build-windows.ps1' + $(if ($SigningConfig) { " -SigningConfig $SigningConfig" } else { '' })
+        # Tauri regenerates installer.nsi on every build; patch the app-data cleanup
+        # and recompile NSIS so the shipped installer matches the corrected logic.
+        & (Join-Path $PSScriptRoot 'patch-nsis-cleanup.ps1')
+        & (Join-Path $PSScriptRoot 'rebuild-nsis-installer.ps1')
+        $buildCommand += ' + patch-nsis-cleanup + rebuild-nsis-installer'
     }
 
     $artifacts = @()

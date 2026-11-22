@@ -2,6 +2,8 @@
 
 **Status:** externally blocked (no clean Windows VM available in this environment).
 Do not simulate or claim these results. Record real evidence in a result file per run.
+The executable per-installer matrices are in `INSTALLER_ACCEPTANCE_PROCEDURE.md`; this file is
+the high-level plan and blocker register.
 
 ## Environment
 - Clean Windows 10/11 x64 VM, fresh user profile, WebView2 runtime present or installer provided.
@@ -45,6 +47,10 @@ The following checks were executed in this environment. They are **static inspec
 | Static upgrade/uninstall audit | `tools/audit-installer.ps1` → `artifacts/installer-audit/audit-20261122-093740.json` | 0 FAIL; 2 blockers; 6 warnings |
 | Data-preservation simulation | `tools/installer-data-safety.ps1` → `artifacts/installer-data-safety/data-safety-20261122-093816.json` | 5/5 modelled scenarios preserve `swiftfetch\` data |
 | Build input/hash recording | `tools/build-installers.ps1 -InspectOnly` → `artifacts/installer-builds/build-20261122-093740.json` | Recorded; no rebuild run |
+| NSIS cleanup path correction | `tools/patch-nsis-cleanup.ps1`, `tools/rebuild-nsis-installer.ps1` → `artifacts/installer-nsis-patch/`, `artifacts/nsis-rebuild/nsis-20261122-100234/rebuild-result.json` | Patched source compiled; no VM execution |
+| Preserve + explicit-delete simulation | `tools/installer-data-safety.ps1` → `artifacts/installer-data-safety/data-safety-20261122-100440.json` | 5/5 scenarios met expectations; unrelated files intact |
+| Post-fix static audit | `tools/audit-installer.ps1` → `artifacts/installer-audit/audit-20261122-100440.json` | 0 FAIL; path alignment PASS |
+| Signed-hash refusal gate | `tools/generate-distribution-hashes.ps1` | Refused unsigned artifacts; no `SHA256SUMS` generated |
 
 These results are evidence that the installer sources are *consistent with* data preservation;
 they are **not** proof that a real Windows machine behaves that way.
@@ -78,14 +84,14 @@ Required clean-VM checks: verify both scopes separately, verify that `AppData\Ro
 is writable for a standard (non-elevated) user, and confirm uninstall in one scope does not
 affect data written by the other.
 
-## Opt-in app-data deletion mismatch (known defect, documented not fixed)
+## Opt-in app-data deletion (source corrected; VM verification required)
 
 NSIS deletes app data only when the user ticks "Delete app data" and the install is not in
-update mode (`installer.nsi:863-879`). It removes `$APPDATA\com.swiftfetch.app` and
-`$LOCALAPPDATA\com.swiftfetch.app`, but the app writes to `%APPDATA%\swiftfetch`. The opt-in
-cleanup therefore does **not** remove the real data directory. Preserve-by-default still holds,
-and MSI authors no app-data removal at all, but the opt-in behaviour must be corrected or
-explicitly accepted before release. This change was out of scope for Phase 2 installer tooling.
+update mode. After the post-Phase-2 fix (`installer.nsi:863-880`) it removes only
+`$APPDATA\swiftfetch`, matching the runtime path from `lib.rs:60-62`; no `LOCALAPPDATA` tree is
+removed. Preserve-by-default still holds and MSI authors no app-data removal at all. Offline
+evidence is in `docs/release/NSIS_CLEANUP_FIX.md`; the checkbox behaviour must still be confirmed
+on a clean VM (procedure N5/N6/N7 in `docs/release/INSTALLER_ACCEPTANCE_PROCEDURE.md`).
 
 ## Failed-upgrade rollback requirements
 

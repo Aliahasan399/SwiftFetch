@@ -77,8 +77,17 @@ try {
     }
 
     $bundleId = if ($nsi -match '!define\s+BUNDLEID\s+"([^"]+)"') { $Matches[1] } else { $null }
-    if ($nsi -match 'RmDir\s+/r\s+"\$APPDATA\\\$\{BUNDLEID\}"') {
-        Add-Finding 'NSIS-DATA-DELETE-PATH' 'WARN' "NSIS opt-in app-data deletion targets `$APPDATA\\$bundleId only." "$nsiPath:863-879"
+    if ($nsi -match 'RmDir\s+/r\s+"\$APPDATA\\swiftfetch"') {
+        Add-Finding 'NSIS-DATA-DELETE-PATH' 'PASS' 'NSIS opt-in app-data deletion targets $APPDATA\swiftfetch (the real runtime data directory).' "$nsiPath:863-880"
+    } elseif ($nsi -match 'RmDir\s+/r\s+"\$APPDATA\\\$\{BUNDLEID\}"') {
+        Add-Finding 'NSIS-DATA-DELETE-PATH' 'FAIL' "NSIS still targets the incorrect `$APPDATA\\$bundleId path." "$nsiPath:863-879"
+    } else {
+        Add-Finding 'NSIS-DATA-DELETE-PATH' 'FAIL' 'Could not confirm the NSIS app-data deletion target.' $nsiPath
+    }
+    if ($nsi -match 'RmDir\s+/r\s+"\$LOCALAPPDATA\\') {
+        Add-Finding 'NSIS-LOCALAPPDATA-REMOVAL' 'FAIL' 'NSIS removes a LOCALAPPDATA tree; unrelated user files could be deleted.' $nsiPath
+    } else {
+        Add-Finding 'NSIS-LOCALAPPDATA-REMOVAL' 'PASS' 'No recursive LOCALAPPDATA removal is authored; unrelated user files are not targeted.' "$nsiPath:863-880"
     }
 
     if ($nsi -match '\$DeleteAppDataCheckboxState\s*=\s*1[\s\S]{0,200}\$UpdateMode\s*<>\s*1') {
@@ -98,9 +107,13 @@ try {
     } else {
         Add-Finding 'RUNTIME-DATA-PATH' 'FAIL' 'Could not confirm the runtime data path in lib.rs.' $libPath
     }
-    if ($runtimeDataPath -and $bundleId -and $bundleId -ne 'swiftfetch') {
-        Add-Finding 'DATA-PATH-MISMATCH' 'WARN' "Runtime uses %APPDATA%/swiftfetch but NSIS cleanup targets `$APPDATA/$bundleId; the opt-in delete would not remove the real data directory. Preserve-by-default holds, but opt-in cleanup is ineffective." "$nsiPath:877 / $libPath:61"
+    if ($runtimeDataPath -and $nsi -match 'RmDir\s+/r\s+"\$APPDATA\\swiftfetch"') {
+        Add-Finding 'DATA-PATH-ALIGNED' 'PASS' 'NSIS cleanup path now matches the runtime data directory; opt-in deletion targets real SwiftFetch data.' "$nsiPath:880 / $libPath:61"
+    } else {
+        Add-Finding 'DATA-PATH-ALIGNED' 'FAIL' 'NSIS cleanup path does not match the runtime data directory.' "$nsiPath / $libPath"
     }
+
+    Add-Finding 'NSIS-ARTIFACT-PREPATCH' 'WARN' 'The historical unsigned NSIS artifact predates the cleanup-path fix. It is retained only as build evidence; a rebuilt installer is required before any release.' 'docs/release/INSTALLER_HASH_BASELINE.md'
 
     # --- Artifact hashes -------------------------------------------------------
     $artifacts = @()
