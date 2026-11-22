@@ -71,3 +71,13 @@
 |---|---|---|---|---|
 | P11-1 | Final evidence directory + manifest | NOT_STARTED | parent | — |
 | P11-2 | Final GO/NO-GO report | NOT_STARTED | parent | — |
+
+## Phase 12 — Installer Engineering (release-readiness Phase 2)
+| Task ID | Description | Status | Agent | Evidence |
+|---|---|---|---|---|
+| P12-1 | Create reproducible-build recording tool (`tools/build-installers.ps1`) | COMPLETED | parent | `artifacts/installer-builds/build-20261122-093740.json` (inspect mode; hashes + `NotSigned`) |
+| P12-2 | Extend installer verification and create static auditor | COMPLETED | parent | `artifacts/installer-2059e517624b4f02b37bcfd83f88b4ed/result.json`; `artifacts/installer-audit/audit-20261122-093740.json` (0 FAIL, 2 blockers, 6 warn) |
+| P12-3 | Create isolated data-preservation simulation | COMPLETED | parent | `artifacts/installer-data-safety/data-safety-20261122-093816.json` (5/5 scenarios preserve data) |
+| P12-4 | Update clean-machine plan and write installer engineering docs | COMPLETED | parent | `CLEAN_MACHINE_ACCEPTANCE.md`; `INSTALLER_ENGINEERING.md`; `INSTALLER_READINESS_REPORT.md` |
+| P12-5 | Real clean-VM install/upgrade/downgrade/uninstall/rollback | BLOCKED_EXTERNAL | — | no clean Windows VM; see `CLEAN_MACHINE_ACCEPTANCE.md` |
+| P12-6 | Trusted Authenticode signing | BLOCKED_OWNER | — | no certificate; artifacts remain `NotSigned` |
