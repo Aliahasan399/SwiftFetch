@@ -91,3 +91,15 @@
 | P13-4 | Update outdated owner-decision status in CDLA investigation | COMPLETED (separate commit `d4ae93e`) | parent | `docs/release/CDLA_COMPATIBILITY_INVESTIGATION.md` |
 | P13-5 | Execute clean-VM acceptance | BLOCKED_EXTERNAL | — | no clean Windows VM |
 | P13-6 | Produce signed artifacts and distribution hashes | BLOCKED_OWNER | — | no certificate; no signing authorized |
+
+## Phase 14 — Phase 3 signing research and preparation
+| Task ID | Description | Status | Agent | Evidence |
+|---|---|---|---|---|
+| P14-1 | Compare zero-cost Windows code-signing programs | COMPLETED (research) | parent | `docs/release/CODE_SIGNING_PROGRAM_COMPARISON.md` |
+| P14-2 | Prepare SignPath application materials and owner instructions (not submitted) | COMPLETED (draft) | parent | `docs/release/CODE_SIGNING_APPLICATION_PACKET.md` |
+| P14-3 | Design secure CI signing architecture, secret/key protection, verification and hash procedures | COMPLETED (design) | parent | `docs/release/SIGNING_ARCHITECTURE.md` (template inactive) |
+| P14-4 | Prepare clean-VM requirements and zero-cost options | COMPLETED (planning) | parent | `docs/release/CLEAN_VM_OPTIONS.md` |
+| P14-5 | Owner MFA, identity verification, role assignment and policy page | BLOCKED_OWNER | — | no account registration or attestation performed |
+| P14-6 | Submit SignPath application after owner approval | BLOCKED_OWNER | — | not submitted |
+| P14-7 | Enable signing workflow and produce signed artifacts | BLOCKED_OWNER | — | no certificate; workflow not installed |
+| P14-8 | Execute clean-VM acceptance | BLOCKED_EXTERNAL | — | no VM created or tests executed |

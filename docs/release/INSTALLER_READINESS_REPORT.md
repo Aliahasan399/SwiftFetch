@@ -24,6 +24,7 @@ production code signing, or modify dependencies. The candidate manifest keeps
 | Post-Phase-2 NSIS cleanup fix | `tools/patch-nsis-cleanup.ps1`, `tools/rebuild-nsis-installer.ps1`, `docs/release/NSIS_CLEANUP_FIX.md` |
 | Acceptance procedure | `docs/release/INSTALLER_ACCEPTANCE_PROCEDURE.md` |
 | Hash baseline policy | `docs/release/INSTALLER_HASH_BASELINE.md`, `tools/generate-distribution-hashes.ps1` |
+| Phase 3 signing research (read-only) | `docs/release/CODE_SIGNING_PROGRAM_COMPARISON.md`, `CODE_SIGNING_APPLICATION_PACKET.md`, `SIGNING_ARCHITECTURE.md`, `CLEAN_VM_OPTIONS.md` — no application or signing activated |
 
 Existing files were backed up before editing:
 `tools/verify-installer.ps1.bak-20261122-093603`,
