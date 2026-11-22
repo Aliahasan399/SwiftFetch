@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Code signing policy — SwiftFetch</title>
+  <meta name="description" content="SwiftFetch code signing policy, required SignPath attribution, signing roles and release approval process.">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html">SwiftFetch</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="download.html">Download</a></li>
+          <li><a href="documentation.html">Documentation</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="license.html">License</a></li>
+          <li><a href="code-signing-policy.html" aria-current="page">Code signing policy</a></li>
+          <li><a href="support.html">Support</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <aside class="notice" aria-label="Document status">
+      <strong>Prepared draft — owner completion required.</strong>
+      <p>The <span class="placeholder">[OWNER: …]</span> fields below must be replaced with real
+      role links before this page is treated as authoritative. SwiftFetch is still an unsigned
+      preview candidate: no certificate has been issued, no signing is active, and no signed
+      release has been published.</p>
+    </aside>
+
+    <h1>Code signing policy</h1>
+    <p class="lead">Free code signing provided by SignPath.io, certificate by SignPath Foundation</p>
+
+    <h2>Attribution</h2>
+    <p>Free code signing provided by SignPath.io, certificate by SignPath Foundation</p>
+    <p>The certificate used for signed SwiftFetch releases is issued to SignPath Foundation, which
+    is therefore the publisher shown by Windows. This policy is published to document that
+    relationship and the controls applied to each signing request.</p>
+
+    <h2>Team roles</h2>
+    <p>The project is maintained by a single person who currently performs all three signing roles.
+    The role holders are:</p>
+    <ul>
+      <li>Authors: <span class="placeholder">[OWNER: author name or GitHub team link]</span></li>
+      <li>Reviewers: <span class="placeholder">[OWNER: reviewer name or GitHub team link]</span></li>
+      <li>Approvers: <span class="placeholder">[OWNER: approver name or GitHub team link]</span></li>
+    </ul>
+    <p>Contributions are accepted through reviewed changes. The CI workflow submits signing
+    requests; an Approver must approve every release signing request. All role members use
+    multi-factor authentication for repository and signing-service access.</p>
+
+    <h2>Release signing process</h2>
+    <p>Release builds are produced by GitHub Actions on GitHub-hosted runners from the public
+    repository's <code>main</code> branch with a pinned Rust toolchain and locked dependencies.
+    The signing service verifies build origin from GitHub metadata. Only artifacts built from the
+    repository are eligible for signing, and each release requires manual approval before a
+    signature is applied. Test builds use a separate test-signing policy and are never signed with
+    the release certificate.</p>
+
+    <h2>Privacy policy</h2>
+    <p>This program will not transfer any information to other networked systems unless specifically
+    requested by the user or the person installing or operating it. Third-party components and
+    services are described in the project's
+    <a href="https://github.com/Aliahasan399/SwiftFetch/blob/main/THIRD_PARTY_NOTICES.md">third-party
+    notices</a> and the <a href="privacy.html">Privacy</a> page.</p>
+
+    <h2>Current status</h2>
+    <p>No application has been submitted, no certificate has been issued, and no installer has been
+    signed. The current installers are unsigned preview candidates and are not a public release.
+    See the <a href="download.html">Download</a> page for release status.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>SwiftFetch — Windows download manager, release candidate (version 0.1.0).</p>
+      <p>This page documents the intended code signing policy. No certification or publisher approval is claimed.</p>
+    </div>
+  </footer>
+</body>
+</html>

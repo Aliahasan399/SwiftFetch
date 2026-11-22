@@ -1,0 +1,127 @@
+# SwiftFetch — SIGNING WORKFLOW TEMPLATE ONLY. DO NOT INSTALL OR ACTIVATE.
+#
+# This file is intentionally stored outside .github/workflows/ and uses a .template
+# extension. Copying it into .github/workflows/sign-release.yml is a separate,
+# owner-authorized action that must occur ONLY AFTER:
+#   - SignPath Foundation has accepted the application in writing;
+#   - the SignPath organization/project/policies/artifact configuration exist;
+#   - SIGNPATH_API_TOKEN is created as an encrypted GitHub Actions secret;
+#   - docs/release/SIGNPATH_QUESTIONS.md answers are recorded;
+#   - the code-signing policy page placeholders are filled and published;
+#   - the owner explicitly authorizes production signing.
+#
+# This workflow never creates a release or tag, never publishes installers, never
+# activates the updater, and never commits or pushes. It only builds, submits for
+# signing, verifies, generates hashes and uploads CI artifacts.
+
+name: sign-installers
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version to sign (must match tauri.conf.json)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build-and-sign:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Check out source
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+
+      - name: Select Rust toolchain
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          rustup override set 1.98.0
+
+      - name: Restore locked npm dependencies
+        run: npm ci
+
+      - name: Verify source and contracts
+        run: ./tools/verify.ps1
+
+      - name: Build unsigned installers
+        run: ./tools/build-installers.ps1
+
+      - name: Upload unsigned artifacts for signing
+        id: upload-unsigned
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-installers
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Submit signing request
+        uses: SignPath/github-action-submit-signing-request@a2c5b60d9c75f073142b653c354b632eedce097b # v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: swiftfetch
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: swiftfetch-installers
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed/
+          parameters: |
+            version: ${{ toJSON(inputs.version) }}
+
+      - name: Verify Authenticode signatures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = Get-ChildItem -LiteralPath 'signed' -Filter '*.msi' -File | Select-Object -First 1
+          $exe = Get-ChildItem -LiteralPath 'signed' -Filter '*.exe' -File | Select-Object -First 1
+          if (-not $msi -or -not $exe) { throw 'Signed MSI or NSIS executable is missing.' }
+          foreach ($artifact in @($msi, $exe)) {
+            $sig = Get-AuthenticodeSignature -LiteralPath $artifact.FullName
+            if ($sig.Status -ne 'Valid') { throw "Invalid signature ($($sig.Status)): $($artifact.Name)" }
+            if ($sig.SignerCertificate.Subject -notlike '*SignPath Foundation*') {
+              throw "Unexpected publisher: $($sig.SignerCertificate.Subject)"
+            }
+            Write-Output "Verified $($artifact.Name): $($sig.Status) / $($sig.SignerCertificate.Subject)"
+          }
+
+      - name: Generate signed distribution hashes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $msi = (Get-ChildItem -LiteralPath 'signed' -Filter '*.msi' -File | Select-Object -First 1).FullName
+          $exe = (Get-ChildItem -LiteralPath 'signed' -Filter '*.exe' -File | Select-Object -First 1).FullName
+          ./tools/generate-distribution-hashes.ps1 -Msi $msi -Nsis $exe -ExpectedPublisher 'SignPath Foundation'
+
+      - name: Upload signed artifacts and hashes
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signed-installers
+          path: |
+            signed/
+            artifacts/distribution-hashes/
+          if-no-files-found: error
+          retention-days: 7
+
+      # Intentionally absent: gh release create, git tag, installer publication,
+      # updater configuration, and any step that modifies ready_for_public_release.

@@ -103,3 +103,14 @@
 | P14-6 | Submit SignPath application after owner approval | BLOCKED_OWNER | — | not submitted |
 | P14-7 | Enable signing workflow and produce signed artifacts | BLOCKED_OWNER | — | no certificate; workflow not installed |
 | P14-8 | Execute clean-VM acceptance | BLOCKED_EXTERNAL | — | no VM created or tests executed |
+
+### Phase 14.1 — Owner application preparation (finalized, not submitted)
+| Task ID | Description | Status | Agent | Evidence |
+|---|---|---|---|---|
+| P14.1-1 | Review and finalize technical application answers; keep personal placeholders | COMPLETED | parent | `docs/release/CODE_SIGNING_APPLICATION_PACKET.md` §4 |
+| P14.1-2 | Prepare standalone code-signing policy page with exact SignPath attribution | COMPLETED (draft page) | parent | `docs/site/code-signing-policy.html`; links added to home/download/nav |
+| P14.1-3 | Review solo-maintainer Author/Reviewer/Approver arrangement | COMPLETED (recommendation) | parent | `docs/release/SOLO_MAINTAINER_ROLES.md` |
+| P14.1-4 | Prepare provider questions (Bangladesh, individual, solo roles, renewal, MSI/NSIS) | COMPLETED (not sent) | parent | `docs/release/SIGNPATH_QUESTIONS.md` |
+| P14.1-5 | Prepare inert GitHub Actions signing configuration | COMPLETED (template only) | parent | `docs/release/templates/sign-release.yml.template` (outside `.github/workflows/`) |
+| P14.1-6 | Owner fills placeholders, answers provider questions, verifies identity, approves submission | BLOCKED_OWNER | — | awaiting explicit owner authorization |
+| P14.1-7 | Submit application / install workflow / activate signing | BLOCKED_OWNER | — | explicitly not performed |

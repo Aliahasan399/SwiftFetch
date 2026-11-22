@@ -1,8 +1,9 @@
-# SwiftFetch — SignPath Foundation application packet (draft, NOT submitted)
+# SwiftFetch — SignPath Foundation application packet (FINALIZED, NOT submitted)
 
 **Status:** NOT SUBMITTED · NO OWNER IDENTITY INVENTED · NO PASSWORDS REQUESTED · NO-GO preserved
-**Prepared:** 2026-11-22. This packet contains drafts and instructions only. Submitting the form,
-attesting to facts, and completing identity verification are **owner actions**.
+**Prepared:** 2026-11-22 · **Phase 3.1:** technical answers finalized; personal fields remain
+`[OWNER: …]` placeholders. Submitting the form, attesting to facts, and completing identity
+verification are **owner actions**. This packet is ready for owner review, not for submission as-is.
 
 ## 1. Rules for this packet
 
@@ -20,11 +21,11 @@ attesting to facts, and completing identity verification are **owner actions**.
 | 1 | Enable MFA on the GitHub account that owns the repository (and on any collaborator accounts). | Published Foundation condition. | ☐ |
 | 2 | Create/secure the SignPath account with MFA. | Published Foundation condition. | ☐ |
 | 3 | Decide role holders: Authors, Reviewers, Approvers. A solo maintainer holding all three must be disclosed and accepted. | Published Foundation condition. | ☐ |
-| 4 | Add a **Code signing policy** section to the project home page, Download/Release page, and repository (exact required text in §5). | Mandatory Foundation condition. | ☐ |
+| 4 | Fill the `[OWNER: …]` role links in the prepared policy page `docs/site/code-signing-policy.html` and publish it, with a "Code signing policy" link on the home and Download pages. | Mandatory Foundation condition; page prepared in Phase 3.1. | ☐ |
 | 5 | Publish/refresh the Privacy page text (site already has one) and confirm no unreviewed data transfers. | Published condition. | ☐ |
 | 6 | Prepare a real Download page with the signed artifact links and hashes — only after signing and owner approval. | "Released in the form to be signed" and "documented" conditions. | ☐ |
 | 7 | Decide how to handle the "verifiable builds / reproducible builds" gap honestly (see `INSTALLER_ENGINEERING.md` §5). | Foundation asks for verifiable builds; reproducibility is not proven. | ☐ |
-| 8 | Confirm no country/residency restriction and certificate renewal terms with the Foundation (questions in comparison report §6). | Not published; must confirm. | ☐ |
+| 8 | Send the prepared questions in `SIGNPATH_QUESTIONS.md` (Bangladesh eligibility, individual maintainer, solo roles, renewal, MSI/NSIS signing) through the official SignPath channel and record the answers. | Not published; must confirm before submission. | ☐ |
 | 9 | Re-read `signpath.org/terms.html` on submission day; conditions can change. | Foundation reserves the right to change conditions. | ☐ |
 
 ## 3. Verified facts available for the form (no invention)
@@ -42,9 +43,10 @@ attesting to facts, and completing identity verification are **owner actions**.
 | Distribution model | Free download, local-first, no account/telemetry | project website |
 | Installers to sign | `SwiftFetch_0.1.0_x64_en-US.msi`, `SwiftFetch_0.1.0_x64-setup.exe` (plus nested PE files in MSI) | `FINAL_BUILD_EVIDENCE.md` |
 
-## 4. Draft answers (review and attest only if true)
+## 4. Finalized technical answers (owner attests personal facts only)
 
-These are templates, not submissions. "Unknown/unverified" must not be converted into a claim.
+All technical wording below is final as of 2026-11-22. Only `[OWNER: …]` fields require real
+personal/organizational input. Do not convert any "not yet" statement into a completed claim.
 
 1. **Project description:** "SwiftFetch is a free, local-first Windows download manager built with
    Tauri, Rust and React. It queues HTTP/HTTPS downloads with resumable segmented transfers, keeps
@@ -64,42 +66,40 @@ These are templates, not submissions. "Unknown/unverified" must not be converted
    website." (Confirm before attesting.)
 7. **Uninstall:** "Both MSI and NSIS provide uninstall. Data is preserved by default; NSIS offers an
    explicit opt-in 'Delete app data' action targeting only `%APPDATA%\swiftfetch`."
-8. **Team and roles:** "[OWNER: list Authors / Reviewers / Approvers and confirm whether the same
-   person holds multiple roles.] All members use MFA on GitHub and SignPath."
-9. **Release process:** "Builds are produced in GitHub Actions from the public repository with
-   pinned toolchain and lockfiles. Each release requires manual approval by the named Approver
-   before signing."
-10. **Build reproducibility disclosure:** "Pinning and isolated frontend directories are in place;
-    byte-identical reproducible builds are **not yet proven**. [OWNER: decide whether to disclose
-    this as an open gap or pause the application until it is resolved.]"
+8. **Team and roles (final technical wording):** "The project is currently maintained by a single
+   person. That maintainer performs the Author, Reviewer and Approver functions, and all three
+   role assignments will be disclosed to SignPath Foundation for confirmation. The CI workflow is
+   the Submitters; the maintainer alone approves each signing request. MFA is used on GitHub and
+   will be used on SignPath." `[OWNER: supply the real name/account for each role.]`
+   See `SOLO_MAINTAINER_ROLES.md` for the separation analysis.
+9. **Release process (final):** "Release builds are produced by GitHub Actions on GitHub-hosted
+   runners from the public `main` branch, with Rust 1.98.0, `npm ci` and Cargo `--locked`. The
+   SignPath GitHub App verifies build origin from GitHub metadata; origin verification and trusted
+   build system checks are required in the release-signing policy. No release is signed without
+   manual approval by the named Approver."
+10. **Build reproducibility disclosure (final — disclose honestly):** "Toolchain, dependency
+    lockfiles and isolated frontend directories are enforced, but byte-identical reproducible
+    builds are **not yet proven**. This is disclosed as an open gap; no reproducibility claim is
+    made in the application."
 11. **Publisher identity expectation:** "I understand the certificate is issued to SignPath
     Foundation and that Windows will show SignPath Foundation as the publisher."
 12. **Contact / legal identity:** "[OWNER: supply the real contact details the form requests.]"
 
-## 5. Required code-signing policy text (draft for owner publication)
+## 5. Code-signing policy page (prepared separately)
 
-Publish on the project home page, Download/Release page, and repository:
+The policy page is prepared as a standalone website document:
+`docs/site/code-signing-policy.html` (publish path `/code-signing-policy.html`).
+It contains the exact required attribution:
 
-```
-## Code signing policy
+> Free code signing provided by SignPath.io, certificate by SignPath Foundation
 
-Free code signing provided by SignPath.io, certificate by SignPath Foundation.
+It also states team roles (with `[OWNER: …]` links), the manual-approval release process, and the
+required privacy-policy statement, and links to the Privacy page and third-party notices.
+"Code signing policy" links are added to the home and Download pages to satisfy the Foundation's
+placement requirement.
 
-Roles:
-- Authors: [OWNER: team/group link]
-- Reviewers: [OWNER: team/group link]
-- Approvers: [OWNER: team/group link]
-
-Each release build is submitted for signing by the CI workflow and requires manual approval by an
-Approver. Only artifacts built from the public repository main branch are eligible.
-
-Privacy policy: This program will not transfer any information to other networked systems unless
-specifically requested by the user or the person installing or operating it. Third-party components
-and services are described in THIRD_PARTY_NOTICES.md and the project Privacy page.
-```
-
-Do not publish this text until the owner has filled the role links and confirmed the privacy
-statement.
+The page must not be treated as authoritative until the owner fills the role links and confirms the
+privacy statement; it carries a visible draft notice until then.
 
 ## 6. Step-by-step owner instructions
 
@@ -124,8 +124,9 @@ statement.
 11. Define artifact configurations for the MSI (deep signing of nested PE files) and the NSIS EXE —
     draft in `SIGNING_ARCHITECTURE.md`.
 12. Add the API token as a GitHub Actions secret named `SIGNPATH_API_TOKEN`; never commit it.
-13. Add the signing workflow **template** from `SIGNING_ARCHITECTURE.md` to `.github/workflows/`
-    only when the owner authorizes production signing. It is intentionally not active now.
+13. Copy the prepared template `docs/release/templates/sign-release.yml.template` into
+    `.github/workflows/sign-release.yml` only when the owner explicitly authorizes production
+    signing. It is intentionally inactive and outside `.github/workflows/` today.
 14. Test with a test-signing policy first; then perform one manually approved release signing.
 15. Verify Authenticode signatures and generate distribution hashes per `SIGNING_ARCHITECTURE.md`.
 16. Only then may the owner decide on publication. Publication still requires lifting NO-GO and

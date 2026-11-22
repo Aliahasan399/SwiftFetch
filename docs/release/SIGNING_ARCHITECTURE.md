@@ -65,8 +65,11 @@ version (`0.1.0`) enforced by `tauri.conf.json` and the build wrapper.
 
 ## 4. GitHub Actions workflow template (INACTIVE)
 
-This is a **template**, kept here as documentation. Do not copy into `.github/workflows/` until the
-owner explicitly authorizes production signing.
+The **canonical, pinned** Phase 3.1 template is
+`docs/release/templates/sign-release.yml.template`. It lives outside `.github/workflows/` and has a
+`.template` extension so it cannot execute. Do not copy it into `.github/workflows/` until the owner
+explicitly authorizes production signing. The illustrative YAML below is superseded by that file;
+use the template file as the single source of truth.
 
 ```yaml
 name: sign-installers  # TEMPLATE ONLY - NOT ENABLED
@@ -207,7 +210,10 @@ still show warnings until reputation accumulates; this must be communicated, not
 ## 8. Current status and next implementation work
 
 - Not applied for; not configured; not active.
-- Before enabling: implement `tools/verify-signed-installers.ps1`, test the workflow in a non-release
-  branch/test-signing policy, obtain owner approval for the publisher trade-off and for any
-  publication, and re-check `signpath.org/terms.html`.
+- Phase 3.1 additions: finalized application answers (`CODE_SIGNING_APPLICATION_PACKET.md`), solo
+  role analysis (`SOLO_MAINTAINER_ROLES.md`), provider questions (`SIGNPATH_QUESTIONS.md`), the
+  prepared policy page (`docs/site/code-signing-policy.html`) and the inert workflow template.
+- Before enabling: copy the template, test it in a non-release branch with a test-signing policy,
+  inline verification is already included so no extra helper is required, obtain owner approval for
+  the publisher trade-off and for any publication, and re-check `signpath.org/terms.html`.
 - No `ready_for_public_release` change, no tag, no release, no updater activation.
