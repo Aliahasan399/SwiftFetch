@@ -4,12 +4,21 @@ SwiftFetch is a Windows desktop download manager built with Tauri, React,
 TypeScript, and Rust. Add an HTTP or HTTPS link to queue a download, pause or
 retry it, set transfer limits, or supply a trusted checksum.
 
-## Distribution and license (owner decisions, 2026-11-21)
+## Distribution and license
+
+Copyright (C) 2026 Ali Ahasan.
+
+SwiftFetch is licensed under the **GNU GPL-3.0-or-later**. See [LICENSE](LICENSE)
+for the full standard text. Commercial use, modification and distribution are
+permitted under the standard GPL terms; no additional notification, permission
+or payment to the copyright holder is required. Third-party notices are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md); the CDLA-Permissive-2.0
+agreement text for bundled CA certificate data is in
+[CDLA-PERMISSIVE-2.0.txt](CDLA-PERMISSIVE-2.0.txt), with the documented residual
+compatibility note in
+[CDLA_COMPATIBILITY_INVESTIGATION.md](docs/release/CDLA_COMPATIBILITY_INVESTIGATION.md).
 
 - **Publisher:** individual / personal publisher.
-- **License:** GPL-3.0-or-later is **proposed** and pending the dependency
-  compatibility audit in [LICENSE_AUDIT.md](docs/release/LICENSE_AUDIT.md).
-  The final `LICENSE` file will be added only after compatibility is confirmed.
 - **Distribution:** free download for everyone; zero-budget, open-source
   strategy. No account, hosted backend, telemetry, or paid service is required.
 - **Current status:** unsigned private release candidate. **NO-GO** for public

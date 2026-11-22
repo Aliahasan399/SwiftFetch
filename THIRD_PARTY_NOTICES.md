@@ -1,6 +1,25 @@
 # Third-Party Notices — SwiftFetch
 
-**Status: PRELIMINARY — pending completion of the license audit.** This file
+Copyright (C) 2026 Ali Ahasan.
+
+SwiftFetch is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. SwiftFetch is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE. See the LICENSE file for the full
+GPL-3.0-or-later terms. Commercial use, modification and distribution are
+permitted under the standard GPL terms; no additional notification, permission
+or payment to the copyright holder is required.
+
+CDLA notice: this distribution includes CA certificate data from `webpki-roots`
+0.26.11 and 1.0.11 under CDLA-Permissive-2.0. The full agreement text is
+reproduced in `CDLA-PERMISSIVE-2.0.txt` and is made available with this
+distribution in fulfilment of CDLA section 2.1. See
+`docs/release/CDLA_COMPATIBILITY_INVESTIGATION.md` for the residual-uncertainty
+note; no formal compatibility certification is claimed.
+
+**Status of third-party inventory below: PRELIMINARY — pending regeneration against the final locked dependency set.** This file
 summarizes the third-party dependency inventory for distribution purposes. It
 is not legal advice and does not by itself satisfy redistribution obligations.
 The full generated inventory and the collected license texts are the
