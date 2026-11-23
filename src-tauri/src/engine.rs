@@ -1088,10 +1088,23 @@ impl Engine {
             codes::INVALID_ACTION => codes::INVALID_ACTION,
             codes::UNSUPPORTED_SCHEME => codes::UNSUPPORTED_SCHEME,
             codes::HTTP_ERROR => codes::HTTP_ERROR,
+            codes::PROTOCOL_ERROR => codes::PROTOCOL_ERROR,
             codes::NETWORK_ERROR => codes::NETWORK_ERROR,
             codes::INVALID_DESTINATION => codes::INVALID_DESTINATION,
             _ => codes::INTERNAL,
         }
+    }
+
+    /// Recognize server-side protocol/application errors that arrive with an
+    /// HTTP 200 status. This is deliberately narrow: only known error schemas
+    /// are rejected so legitimate binary downloads are unaffected.
+    fn protocol_error_payload(content_type: Option<&str>, prefix: &[u8]) -> bool {
+        let media_type = content_type.unwrap_or("").to_ascii_lowercase();
+        if !media_type.contains("vnd.youtube-ump") {
+            return false;
+        }
+        let text = String::from_utf8_lossy(prefix);
+        text.contains("malformed_config") || text.contains("sabr.")
     }
 
     /// Download a selected HLS/DASH representation as one file by assembling
@@ -1987,7 +2000,7 @@ impl Engine {
         headers: &[HeaderPair],
     ) -> Result<ResourceMetadata, EngineError> {
         let _host_permit = self.host_permit(url).await?;
-        let resp = apply_headers(
+        let mut resp = apply_headers(
             self.client()
                 .get(url)
                 .header(reqwest::header::RANGE, "bytes=0-0"),
@@ -2001,6 +2014,17 @@ impl Engine {
         check_redirect_target(url, &final_url)?;
         let status = resp.status();
         let h = resp.headers().clone();
+        if status == reqwest::StatusCode::OK {
+            let prefix = resp.chunk().await.ok().flatten().map(|bytes| bytes.to_vec()).unwrap_or_default();
+            let content_type = header_string(&h, reqwest::header::CONTENT_TYPE);
+            if Self::protocol_error_payload(content_type.as_deref(), &prefix) {
+                return Err(EngineError::new(
+                    codes::PROTOCOL_ERROR,
+                    "The server returned a protocol error response instead of a downloadable file.",
+                    false,
+                ));
+            }
+        }
 
         if status == reqwest::StatusCode::PARTIAL_CONTENT {
             // We asked for exactly byte 0. Anything else is a malformed or

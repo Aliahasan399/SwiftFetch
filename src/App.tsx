@@ -6,9 +6,11 @@ import { downloadStore, refreshTasks, useDownloads } from "./store";
 import { useResource } from "./hooks";
 import type { PendingConfirmation, PowerRequest, RecoveryEvent, Settings, ViewId } from "./types";
 import { validateDownloadUrl } from "./format";
+import { selectPendingId } from "./pending";
 import { bootDesktop } from "./desktopBoot";
 import { AddDownloadDialog } from "./components/AddDownloadDialog";
 import { BrowserDownloadConfirmation } from "./components/BrowserDownloadConfirmation";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorBanner, InfoBanner } from "./components/Feedback";
 import { Icon, type IconName } from "./components/Icon";
 import { TaskActionProvider } from "./components/TaskActionProvider";
@@ -190,9 +192,8 @@ function Shell({ locale, onLocale }: { locale: Locale; onLocale: (locale: Locale
         const rows = await api.listPendingConfirmations();
         if (disposed) return;
         setPendingConfirmations(rows);
-        if (rows.length > 0 && !pendingRef.current && !document.querySelector("dialog[open]")) {
-          setPendingId(rows[0].id);
-        }
+        const next = selectPendingId(rows, pendingRef.current, Boolean(document.querySelector("dialog[open]")));
+        if (next !== pendingRef.current) setPendingId(next);
       } catch {
         // The core may still be starting; the next poll retries.
       }
@@ -239,7 +240,7 @@ function Shell({ locale, onLocale }: { locale: Locale; onLocale: (locale: Locale
     </aside>
     <div className="workspace"><header className="topbar"><div className="breadcrumb"><Icon name="folder" size={16} /><span>{translate(locale, "nav.workspace")}</span><span aria-hidden="true">/</span><strong>{translate(locale, current.titleKey)}</strong></div><div className="topbar-actions"><span className="session-status">{online ? `${activeCount} ${translate(locale, "app.active")}` : translate(locale, "app.offline")}</span><button className="icon-button" disabled={state.loading} aria-label={translate(locale, "app.refresh")} title={translate(locale, "app.refresh")} onClick={() => { void refreshTasks().catch(() => undefined); }}><Icon name="retry" size={19} className={state.loading ? "spinning" : undefined} /></button><button className="button button-primary" onClick={() => openAdd()} title={translate(locale, "app.add.shortcut")}><Icon name="plus" size={18} />{translate(locale, "app.add")}</button></div></header>
       <main id="main-content" ref={mainRef} tabIndex={-1} className="main-content"><div className="page-heading"><div><h1>{translate(locale, current.titleKey)}</h1><p>{translate(locale, current.descKey)}</p></div><span className="workspace-label">PERSONAL WORKSPACE</span></div>
-        <div className="global-notices">{power && <div className="notice notice-info" role="status"><Icon name="warning" /><div><strong>{translate(locale, "power.pending")}</strong><p>Requested window ends {formatDate(power.deadline)}. Active transfers are allowed to finish before shutdown.</p><ErrorBanner error={cancelError} /></div><button className="button button-small" disabled={cancelBusy} onClick={() => { void cancelShutdown(); }}>{translate(locale, "power.cancel")}</button></div>}{!online && <InfoBanner warning><strong>{translate(locale, "banner.offline.title")}</strong><p>{translate(locale, "banner.offline.body")}</p></InfoBanner>}<ErrorBanner error={state.error} onRetry={() => setConnectionAttempt((attempt) => attempt + 1)} />{eventError && hasDesktopCore() && <ErrorBanner error={eventError} onRetry={() => setConnectionAttempt((attempt) => attempt + 1)} />}{eventError && state.last_synced_at && <InfoBanner>{translate(locale, "banner.events")}</InfoBanner>}{recovery && <div className="notice notice-info" role="status"><Icon name="retry" /><div><strong>{translate(locale, "banner.recovery")}</strong><p>{formatNumber(recovery.paused)} paused · {formatNumber(recovery.restarted)} restarted after the previous session.</p></div><button className="icon-button" aria-label="Dismiss recovery notice" onClick={() => setRecovery(null)}><Icon name="close" size={17} /></button></div>}</div>
+        <div className="global-notices">{pendingConfirmations.length > 1 && <div className="notice notice-info" role="status"><Icon name="queue" /><div><strong>{pendingConfirmations.length} browser downloads are waiting for confirmation.</strong><p>Each request will open its own confirmation dialog in turn. Nothing starts until you choose Start download or Add to queue.</p></div></div>}{power && <div className="notice notice-info" role="status"><Icon name="warning" /><div><strong>{translate(locale, "power.pending")}</strong><p>Requested window ends {formatDate(power.deadline)}. Active transfers are allowed to finish before shutdown.</p><ErrorBanner error={cancelError} /></div><button className="button button-small" disabled={cancelBusy} onClick={() => { void cancelShutdown(); }}>{translate(locale, "power.cancel")}</button></div>}{!online && <InfoBanner warning><strong>{translate(locale, "banner.offline.title")}</strong><p>{translate(locale, "banner.offline.body")}</p></InfoBanner>}<ErrorBanner error={state.error} onRetry={() => setConnectionAttempt((attempt) => attempt + 1)} />{eventError && hasDesktopCore() && <ErrorBanner error={eventError} onRetry={() => setConnectionAttempt((attempt) => attempt + 1)} />}{eventError && state.last_synced_at && <InfoBanner>{translate(locale, "banner.events")}</InfoBanner>}{recovery && <div className="notice notice-info" role="status"><Icon name="retry" /><div><strong>{translate(locale, "banner.recovery")}</strong><p>{formatNumber(recovery.paused)} paused · {formatNumber(recovery.restarted)} restarted after the previous session.</p></div><button className="icon-button" aria-label="Dismiss recovery notice" onClick={() => setRecovery(null)}><Icon name="close" size={17} /></button></div>}</div>
         {view === "dashboard" && <DashboardView onDetails={setTaskId} onAdd={() => openAdd()} />}
         {view === "queue" && <QueueView onDetails={setTaskId} />}
         {view === "history" && <HistoryView onDetails={setTaskId} />}
@@ -273,6 +274,6 @@ function Shell({ locale, onLocale }: { locale: Locale; onLocale: (locale: Locale
 
 export default function App() {
   const [locale, setLocale] = useState<Locale>("en");
-  return <LocaleProvider locale={locale}><TaskActionProvider><Shell locale={locale} onLocale={setLocale} /></TaskActionProvider></LocaleProvider>;
+  return <ErrorBoundary><LocaleProvider locale={locale}><TaskActionProvider><Shell locale={locale} onLocale={setLocale} /></TaskActionProvider></LocaleProvider></ErrorBoundary>;
 }
 

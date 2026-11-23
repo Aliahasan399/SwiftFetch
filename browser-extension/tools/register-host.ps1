@@ -8,7 +8,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$fullManifestDirectory = [IO.Path]::GetFullPath($ManifestDirectory)
+$tempRoot = [IO.Path]::GetFullPath($env:TEMP).TrimEnd('\') + '\'
+if ($fullManifestDirectory.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    $fullManifestDirectory -match '(?i)scratch|hermes|\\temp\\') {
+    throw 'Refusing to register the native host in a temporary or scratch directory. Use the stable per-user default under %LOCALAPPDATA%\SwiftFetch\NativeHost.'
+}
 $exe = Get-Item -LiteralPath $ExecutablePath
+if ($exe.FullName.StartsWith($tempRoot, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'Refusing to register a native host executable from a temporary directory. Install the development build to a stable path first.'
+}
 if ($exe.PSIsContainer -or $exe.Extension -ne '.exe') { throw 'Select the installed SwiftFetch executable.' }
 $signature = Get-AuthenticodeSignature -FilePath $exe.FullName
 if (-not $AllowUnsignedPreview -and $signature.Status -ne 'Valid') {

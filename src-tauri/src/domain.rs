@@ -474,6 +474,9 @@ pub mod codes {
     pub const PATH_TRAVERSAL: &str = "PATH_TRAVERSAL";
     pub const RESERVED_NAME: &str = "RESERVED_NAME";
     pub const HTTP_ERROR: &str = "HTTP_ERROR";
+    /// The server returned HTTP 200 but a recognized protocol/application
+    /// error payload rather than a downloadable file.
+    pub const PROTOCOL_ERROR: &str = "PROTOCOL_ERROR";
     pub const NETWORK_ERROR: &str = "NETWORK_ERROR";
     pub const SERVER_DOES_NOT_SUPPORT_RANGES: &str = "SERVER_DOES_NOT_SUPPORT_RANGES";
     pub const CHECKSUM_MISMATCH: &str = "CHECKSUM_MISMATCH";

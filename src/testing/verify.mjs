@@ -393,6 +393,40 @@ try {
     assert.match(feedback, /role="alert"/, "errors are announced assertively");
   });
 
+  test("stale URL validation error is cleared when the input becomes valid", async () => {
+    const dialog = await readFile("src/components/AddDownloadDialog.tsx", "utf8");
+    assert.match(
+      dialog,
+      /if \(validation && validateDownloadUrl\(value\) === null\) setValidation\(null\)/,
+      "URL onChange clears an obsolete validation message",
+    );
+  });
+
+  test("diagnostics preview is visible and redacts sensitive fields", async () => {
+    const { redactDiagnosticsBundle } = await server.ssrLoadModule("/src/diagnosticsBundle.ts");
+    const bundle = redactDiagnosticsBundle({
+      version: "0.1.0",
+      database_path: "C:/Users/owner/AppData/Roaming/swiftfetch/state.sqlite",
+      headers: [{ name: "Cookie", value: "session=secret" }],
+      events: [{ event_type: "download_completed", created_at: "2026-01-01" }],
+    });
+    assert.match(bundle, /"version": "0.1.0"/);
+    assert.doesNotMatch(bundle, /session=secret|AppData\/Roaming/);
+    const view = await readFile("src/views/DiagnosticsView.tsx", "utf8");
+    assert.match(view, /DiagnosticsBundleDialog/, "preview opens a visible dialog");
+  });
+
+  test("multiple browser handoffs are processed one at a time without loss", async () => {
+    const { selectPendingId } = await server.ssrLoadModule("/src/pending.ts");
+    const rows = Array.from({ length: 8 }, (_, index) => ({ id: `pending-${index}` }));
+    assert.equal(selectPendingId(rows, null, false), "pending-0");
+    assert.equal(selectPendingId(rows, "pending-0", true), "pending-0", "current dialog stays open");
+    assert.equal(selectPendingId(rows.slice(1), null, true), null, "no dialog opens over an open dialog");
+    assert.equal(selectPendingId(rows.slice(1), null, false), "pending-1", "next request is not dropped");
+    assert.equal(selectPendingId([], null, false), null);
+    assert.equal(selectPendingId(rows, "resolved-id", false), "pending-0", "stale id falls back to first row");
+  });
+
   for (const entry of tests) {
     try { await entry.run(); console.log(`PASS ${entry.name}`); }
     catch (error) { failed += 1; console.error(`FAIL ${entry.name}\n${error.stack ?? error}`); }

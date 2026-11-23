@@ -929,6 +929,40 @@ fn truncated_working_file_does_not_get_marked_complete() {
     assert_eq!(row.received_bytes, 1048576);
 }
 
+#[test]
+fn protocol_error_payload_is_not_marked_completed() {
+    let fixture = Fixture::start().expect("fixture server");
+    let h = harness().expect("engine harness");
+    let dir = temp_dir("protocol-error");
+    let dest = dir.join("error.bin").to_string_lossy().to_string();
+    let task = add_task(&h.store, &fixture.url("/status/200-error"), &dest, 1);
+    h.engine.spawn_task(&task.id);
+    let row = wait_for_status(
+        h.store.as_ref(),
+        &task.id,
+        DownloadStatus::Failed,
+        Duration::from_secs(20),
+    );
+    assert_eq!(row.last_error_code.as_deref(), Some(codes::PROTOCOL_ERROR));
+}
+
+#[test]
+fn legitimate_binary_response_still_completes() {
+    let fixture = Fixture::start().expect("fixture server");
+    let h = harness().expect("engine harness");
+    let dir = temp_dir("binary-ok");
+    let dest = dir.join("file.bin").to_string_lossy().to_string();
+    let task = add_task(&h.store, &fixture.url("/status/200-binary"), &dest, 1);
+    h.engine.spawn_task(&task.id);
+    wait_for_status(
+        h.store.as_ref(),
+        &task.id,
+        DownloadStatus::Completed,
+        Duration::from_secs(20),
+    );
+    assert_eq!(std::fs::read(&dest).expect("file").len(), 64);
+}
+
 // ---------------------------------------------------------------------------
 // HLS / DASH segment assembly (Phase 5)
 // ---------------------------------------------------------------------------

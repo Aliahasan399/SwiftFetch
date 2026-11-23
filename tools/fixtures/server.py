@@ -153,7 +153,11 @@ class FixtureHandler(BaseHTTPRequestHandler):
             self._send(200, b"ok")
             return
 
-        if path == "/manifest/hls.m3u8":
+        if path == "/status/200-error":
+            self._send(200, b"sabr.malformed_config", {"Content-Type": "application/vnd.youtube-ump"})
+        elif path == "/status/200-binary":
+            self._send(200, make_body(64), {"Content-Type": "application/octet-stream"})
+        elif path == "/manifest/hls.m3u8":
             self._send(200, b"#EXTM3U\n#EXT-X-ENDLIST\n#EXTINF:10,\n/bytes/128\n#EXTINF:10,\n/bytes/64\n", {"Content-Type": "application/vnd.apple.mpegurl"})
         elif path == "/manifest/hls-live.m3u8":
             self._send(200, b"#EXTM3U\n#EXTINF:10,\n/bytes/128\n", {"Content-Type": "application/vnd.apple.mpegurl"})

@@ -7,9 +7,9 @@
 
 `./tools/build-installers.ps1` → exit 0. It ran `tools/build-windows.ps1` (`npm run tauri build --ci … -- --locked`),
 then `tools/patch-nsis-cleanup.ps1`, then `tools/rebuild-nsis-installer.ps1`.
-Build evidence: `artifacts/installer-builds/build-20261122-184015.json`;
-NSIS rebuild evidence: `artifacts/nsis-rebuild/nsis-20261122-184628/rebuild-result.json`.
-Final canonical verification after this build: `artifacts/verification/report-20261122-192556.json` (8/8).
+Build evidence: `artifacts/installer-builds/build-20261123-142728.json`;
+NSIS rebuild evidence: `artifacts/nsis-rebuild/nsis-20261123-144008/rebuild-result.json`.
+Final canonical verification after this build: `artifacts/verification/report-20261123-142607.json` (8/8).
 
 Frontend build inside the installer: `index-CM-YCWGD.js` 352,728 B,
 SHA `38cca5ebc12103a2430501b43db81d3783d442bb0ab4cb14d33a3afc716fa6dd`;
@@ -21,21 +21,22 @@ All staged under `E:\CloneIdm\swiftfetch\artifacts\dev-build\`:
 
 | Artifact | Bytes | SHA-256 | Version | Architecture | Signature |
 |---|---:|---|---|---|---|
-| `SwiftFetch_0.1.0_x64-setup.exe` (NSIS) | 3,752,846 | `4d05c3491df93657b21e39ba6735288c05f42f342c90dc24f9419e1d4a186e81` | FileVersion 0.1.0 | x64 payload (32-bit NSIS stub) | `NotSigned` |
-| `SwiftFetch_0.1.0_x64_en-US.msi` | 6,352,896 | `ed08fd0a2693519cf8c3ab6adef6da6ebbe5ec952b87932e3454f61219968408` | 0.1.0 | x64 | `NotSigned` |
-| `swiftfetch.exe` | 10,527,232 | `2693341a98952ee5ae14c2f5c9724fc2b4579a223b623ffa94b8524f3732913a` | 0.1.0 | AMD64 (x64) | `NotSigned` |
-| `swiftfetch_lib.dll` | 2,032,128 | `199e75b13a1f9828505de063e8743f538fb33cf60681783051282d592ca94aad` | — | x64 | `NotSigned` |
+| `SwiftFetch_0.1.0_x64-setup.exe` (NSIS) | 3,755,344 | `0a8e8253e61a7eadb55e49be95d6242c646421692eb989dbddf173963446fac5` | FileVersion 0.1.0 | x64 payload (32-bit NSIS stub) | `NotSigned` |
+| `SwiftFetch_0.1.0_x64_en-US.msi` | 6,352,896 | `53d449e53f6ccf67b930ee93f4a26d3478afb0651251d9082c9078f0f5eea096` | 0.1.0 | x64 | `NotSigned` |
+| `swiftfetch.exe` | 10,529,792 | `345220921fd59c8b966146f358ec92c786c2d2cc87a4c0cd8de24f6ac7e23fe0` | 0.1.0 | AMD64 (x64) | `NotSigned` |
+| `swiftfetch_lib.dll` | 2,032,128 | `363790e289b8aea8d18ffa2d0d59aa8c2f86fd316096dfd95d41268f21` | — | x64 | `NotSigned` |
 
 Historical installer hashes were backed up to `artifacts/historical-installers-backup/` before this build
 and remain documented in `INSTALLER_HASH_BASELINE.md`. Do not use those hashes for this development build.
 
 ## 3. Installer content verification
 
-`tools/verify-installer.ps1 -Msi artifacts/dev-build/... -Nsis artifacts/dev-build/...` → exit 0.
-Administrative MSI extraction at `artifacts/installer-ebc5d2ca485946d7b2cc84fe6d2a2a4d`; packaged
-smoke result `artifacts/smoke/run-e1U7nY/result.json`: **14 pass, 1 skip**. The smoke includes native
-handoff, replay guard, upgrades/restart recovery and update-health handshake, confirming the latest
-backend and frontend are present. MSI-contained `swiftfetch_lib.dll` hash matches the staged DLL;
+`tools/verify-installer.ps1 -Msi artifacts/dev-build/... -Nsis artifacts/dev-build/...` was attempted, but
+the extracted WebView intermittently rendered a blank document (`title:""`, no scripts) on four consecutive
+attempts. This is recorded as **BLOCKED/PARTIAL**, not a PASS. A direct smoke run of the staged
+`artifacts/dev-build/swiftfetch.exe` succeeded on the third attempt with **14 pass, 1 skip**
+(`artifacts/smoke/run-nyhKSs/result.json`), covering native handoff, replay guard, restart recovery and
+update-health handshake. MSI-contained `swiftfetch_lib.dll` hash matches the staged DLL;
 the extracted `swiftfetch.exe` differs from the staged standalone EXE only because Tauri patches
 bundle metadata per bundle type, and its version is 0.1.0.
 
@@ -43,9 +44,10 @@ NSIS cleanup: `installer.nsi:880` contains `RmDir /r "$APPDATA\swiftfetch"`; no 
 recursive removal exists. The built installer was produced by `rebuild-nsis-installer.ps1` from that
 patched script. Actual uninstall data behavior must be confirmed on the second laptop.
 
-## 4. Install / uninstall check (this machine)
+## 4. Install / uninstall check (previous development build)
 
-Controlled silent install into `artifacts/install-test/SwiftFetch`:
+This check was performed for the earlier development build, not repeated for the latest unsigned
+artifacts. Controlled silent install into `artifacts/install-test/SwiftFetch`:
 - `install_exit=0`; `swiftfetch.exe` and `uninstall.exe` present (NSIS installs only the standalone EXE).
 - The installed standalone EXE passed the full smoke suite (14 pass, 1 skip) without the DLL.
 - `uninstall_exit=0`; install directory removed.
